@@ -12,9 +12,9 @@ namespace CRMS.winforms.StaffView
     /// Popup shown when Staff clicks "+ Add Customer": collects the walk-in
     /// customer's details, the device concern, an estimated service fee built
     /// from the parts/services picked, and requires the 24-hour-no-cancellation
-    /// terms to be accepted before the ticket can be submitted. The terms
-    /// checkbox lives in a fixed bar above the footer (not inside the scroll
-    /// area) so it's always visible — no hunting for it.
+    /// terms to be accepted before the ticket can be submitted. Resizable /
+    /// maximizable, and every full-width element is anchored so it keeps
+    /// filling the available width correctly at any size.
     /// </summary>
     public class AddCustomerDialog : Form
     {
@@ -45,6 +45,7 @@ namespace CRMS.winforms.StaffView
         private RoundedMultilineBox txtConcern = null!;
         private Label lblTotalValue = null!;
         private Label lblSelectedCount = null!;
+        private RoundedPanel totalStrip = null!;
         private CheckBox chkAcceptTerms = null!;
         private RoundedButton btnSubmit = null!;
         private Label lblError = null!;
@@ -68,11 +69,12 @@ namespace CRMS.winforms.StaffView
         private void BuildLayout()
         {
             Text = "Add New Customer";
-            FormBorderStyle = FormBorderStyle.FixedSingle;
-            MaximizeBox = false;
+            FormBorderStyle = FormBorderStyle.Sizable;
+            MaximizeBox = true;
             MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(680, 800);
+            MinimumSize = new Size(700, 660); // matches the width every internal measurement below assumes
             BackColor = PageBg;
             Font = new Font("Segoe UI", 9.5F);
 
@@ -101,8 +103,10 @@ namespace CRMS.winforms.StaffView
             };
             Controls.Add(header);
 
-            // ===================== Footer (buttons) — sized against the
-            // FORM's own fixed ClientSize so it can never render clipped =====
+            // ===================== Footer (buttons). Positioned once against
+            // the FORM's own ClientSize (valid immediately since ClientSize is
+            // already set above), then Anchor keeps Submit stretching to fill
+            // the width correctly if the dialog is resized/maximized. =====
             const int footerHeight = 92;
             const int footerPad = 28;
             const int btnHeight = 48;
@@ -117,13 +121,13 @@ namespace CRMS.winforms.StaffView
             };
 
             int btnY = (footerHeight - btnHeight) / 2;
-            int submitWidth = ClientSize.Width - footerPad * 2 - cancelWidth - btnGap;
 
             var btnCancel = new RoundedButton
             {
                 Text = "Cancel",
                 Location = new Point(footerPad, btnY),
                 Size = new Size(cancelWidth, btnHeight),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left,
                 BackColor = Color.White,
                 HoverColor = Color.FromArgb(245, 246, 248),
                 ForeColor = Theme.TextPrimary,
@@ -137,7 +141,8 @@ namespace CRMS.winforms.StaffView
             {
                 Text = "Submit",
                 Location = new Point(footerPad + cancelWidth + btnGap, btnY),
-                Size = new Size(submitWidth, btnHeight),
+                Size = new Size(ClientSize.Width - footerPad * 2 - cancelWidth - btnGap, btnHeight),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 BackColor = DisabledGray,
                 HoverColor = DisabledGrayHover,
                 ForeColor = Color.White,
@@ -148,52 +153,6 @@ namespace CRMS.winforms.StaffView
             btnSubmit.Click += BtnSubmit_Click;
             footer.Controls.Add(btnSubmit);
 
-            // ===================== Terms bar — fixed, always visible, sits
-            // directly above the footer so the required checkbox never needs
-            // to be scrolled to (previously it lived at the bottom of the
-            // scrollable Terms card, easy to miss) =====================
-            const int termsBarHeight = 96;
-
-            var termsBar = new Panel { Dock = DockStyle.Bottom, Height = termsBarHeight, BackColor = Color.White };
-            termsBar.Paint += (s, e) =>
-            {
-                using var pen = new Pen(CardBorder, 1);
-                e.Graphics.DrawLine(pen, 0, 0, termsBar.Width, 0);
-            };
-
-            chkAcceptTerms = new CheckBox
-            {
-                Text = "I accept the Terms & Conditions below, including the 24-hour cancellation policy.",
-                Font = new Font("Segoe UI", 9.25F, FontStyle.Bold),
-                ForeColor = Theme.TextPrimary,
-                AutoSize = false,
-                Location = new Point(footerPad, 16),
-                Size = new Size(ClientSize.Width - footerPad * 2, 40)
-            };
-            chkAcceptTerms.CheckedChanged += (s, e) =>
-            {
-                btnSubmit.Enabled = chkAcceptTerms.Checked;
-                btnSubmit.BackColor = chkAcceptTerms.Checked ? Theme.Accent : DisabledGray;
-                btnSubmit.HoverColor = chkAcceptTerms.Checked ? Theme.AccentHover : DisabledGrayHover;
-                btnSubmit.Invalidate();
-            };
-            termsBar.Controls.Add(chkAcceptTerms);
-
-            lblError = new Label
-            {
-                ForeColor = Color.FromArgb(200, 70, 70),
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-                AutoSize = false,
-                Location = new Point(footerPad, 58),
-                Size = new Size(ClientSize.Width - footerPad * 2, 26),
-                Visible = false
-            };
-            termsBar.Controls.Add(lblError);
-
-            // Dock=Bottom panels stack in reverse add order (last added sits
-            // lowest), so add termsBar before footer to get: ... termsBar,
-            // then footer at the very bottom edge.
-            Controls.Add(termsBar);
             Controls.Add(footer);
 
             // ===================== Scrollable content =====================
@@ -206,13 +165,8 @@ namespace CRMS.winforms.StaffView
             };
             Controls.Add(scroll);
             scroll.BringToFront();
-            termsBar.BringToFront();
             footer.BringToFront();
 
-            // Sized against the scroll panel's own available width (not a
-            // guess at the scrollbar's width) and anchored so it keeps
-            // filling that width correctly once a scrollbar actually shows —
-            // this is what was leaving a big empty gap on the right before.
             int cardWidth = ClientSize.Width - scroll.Padding.Horizontal;
 
             var customerCard = BuildCustomerCard(cardWidth);
@@ -251,6 +205,7 @@ namespace CRMS.winforms.StaffView
             card.Controls.Add(new Label
             {
                 Text = text,
+                UseMnemonic = false, // a bare "&" (e.g. "Terms & Agreement") would otherwise be swallowed as an accelerator marker
                 Font = new Font("Segoe UI", 12F, FontStyle.Bold),
                 ForeColor = Theme.TextPrimary,
                 AutoSize = true,
@@ -258,7 +213,8 @@ namespace CRMS.winforms.StaffView
             });
         }
 
-        private void AddField(RoundedPanel card, out RoundedTextBox box, string caption, string placeholder, int x, int y, int width, bool isPassword = false)
+        private void AddField(RoundedPanel card, out RoundedTextBox box, string caption, string placeholder,
+            int x, int y, int width, bool stretchWithCard = false, bool isPassword = false)
         {
             card.Controls.Add(new Label
             {
@@ -275,6 +231,8 @@ namespace CRMS.winforms.StaffView
                 Placeholder = placeholder,
                 IsPassword = isPassword
             };
+            if (stretchWithCard)
+                box.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             card.Controls.Add(box);
         }
 
@@ -290,16 +248,18 @@ namespace CRMS.winforms.StaffView
             int lastTriWidth = (width - 48) - triWidth * 2 - gap * 2;
             int halfWidth = (width - 48 - gap) / 2;
 
+            // Last field in each row stretches to absorb any extra width when
+            // the dialog is resized wider; earlier fields keep a fixed width.
             AddField(card, out txtFirstName, "FIRST NAME", "e.g. Maria", 24, fieldsTop, triWidth);
             AddField(card, out txtMiddleName, "MIDDLE NAME", "e.g. Anne", 24 + triWidth + gap, fieldsTop, triWidth);
-            AddField(card, out txtLastName, "LAST NAME", "e.g. Santos", 24 + (triWidth + gap) * 2, fieldsTop, lastTriWidth);
+            AddField(card, out txtLastName, "LAST NAME", "e.g. Santos", 24 + (triWidth + gap) * 2, fieldsTop, lastTriWidth, stretchWithCard: true);
 
             int row2 = fieldsTop + 68;
             AddField(card, out txtPhone, "PHONE NUMBER", "+1 (555) 000-0000", 24, row2, halfWidth);
-            AddField(card, out txtEmail, "EMAIL ADDRESS", "customer@email.com", 24 + halfWidth + gap, row2, halfWidth);
+            AddField(card, out txtEmail, "EMAIL ADDRESS", "customer@email.com", 24 + halfWidth + gap, row2, halfWidth, stretchWithCard: true);
 
             int row3 = row2 + 68;
-            AddField(card, out txtDeviceName, "DEVICE NAME / MODEL", "e.g. MacBook Pro 14\" M3 (2023)", 24, row3, width - 48);
+            AddField(card, out txtDeviceName, "DEVICE NAME / MODEL", "e.g. MacBook Pro 14\" M3 (2023)", 24, row3, width - 48, stretchWithCard: true);
 
             int row4 = row3 + 68;
             card.Controls.Add(new Label
@@ -314,6 +274,7 @@ namespace CRMS.winforms.StaffView
             {
                 Location = new Point(24, row4 + 20),
                 Size = new Size(width - 48, 76),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 Placeholder = "Describe the issue in the customer's own words..."
             };
             card.Controls.Add(txtConcern);
@@ -346,13 +307,15 @@ namespace CRMS.winforms.StaffView
 
             py += chipHeight + 18;
 
-            var totalStrip = new RoundedPanel
+            totalStrip = new RoundedPanel
             {
                 Location = new Point(24, py),
                 Size = new Size(width - 48, 60),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 BackColor = FieldFill,
                 CornerRadius = 14
             };
+            totalStrip.Resize += (s, e) => PositionTotalValue();
             card.Controls.Add(totalStrip);
 
             totalStrip.Controls.Add(new Label
@@ -381,10 +344,15 @@ namespace CRMS.winforms.StaffView
                 AutoSize = true
             };
             totalStrip.Controls.Add(lblTotalValue);
-            lblTotalValue.Location = new Point(totalStrip.Width - lblTotalValue.PreferredWidth - 20, 15);
+            PositionTotalValue();
 
             card.Height = py + 60 + 24;
             return card;
+        }
+
+        private void PositionTotalValue()
+        {
+            lblTotalValue.Location = new Point(totalStrip.Width - lblTotalValue.PreferredWidth - 20, 15);
         }
 
         private RoundedButton MakeServiceChip(string name, decimal price)
@@ -424,11 +392,10 @@ namespace CRMS.winforms.StaffView
             decimal total = EstimatedCostValue;
             lblSelectedCount.Text = $"{_selectedServices.Count} item{(_selectedServices.Count == 1 ? "" : "s")} selected";
             lblTotalValue.Text = total.ToString("$0.00");
-            lblTotalValue.Location = new Point(lblTotalValue.Parent!.Width - lblTotalValue.PreferredWidth - 20, 15);
+            PositionTotalValue();
         }
 
-        // ----- Terms & Agreement (just the scrollable text — the accept
-        // checkbox lives in the fixed termsBar so it's always visible) -----
+        // ----- Terms & Agreement (text + the accept checkbox, both here) -----
         private RoundedPanel BuildTermsCard(int width)
         {
             var card = NewCard(width);
@@ -438,6 +405,7 @@ namespace CRMS.winforms.StaffView
             {
                 Location = new Point(24, 76),
                 Size = new Size(width - 48, 190),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 BackColor = FieldFill,
                 AutoScroll = true
             };
@@ -459,10 +427,45 @@ namespace CRMS.winforms.StaffView
                 ForeColor = Theme.TextPrimary,
                 Location = new Point(16, 12),
                 Size = new Size(width - 48 - 32 - SystemInformation.VerticalScrollBarWidth, 280),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 AutoSize = false
             });
 
-            card.Height = 76 + 190 + 24;
+            int checkY = 76 + 190 + 20;
+            chkAcceptTerms = new CheckBox
+            {
+                Text = "I have read and accept the Terms & Conditions above, including the 24-hour cancellation policy.",
+                UseMnemonic = false,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Theme.TextPrimary,
+                AutoSize = false,
+                Size = new Size(width - 48, 40),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                Location = new Point(24, checkY)
+            };
+            chkAcceptTerms.CheckedChanged += (s, e) =>
+            {
+                btnSubmit.Enabled = chkAcceptTerms.Checked;
+                btnSubmit.BackColor = chkAcceptTerms.Checked ? Theme.Accent : DisabledGray;
+                btnSubmit.HoverColor = chkAcceptTerms.Checked ? Theme.AccentHover : DisabledGrayHover;
+                btnSubmit.Invalidate();
+            };
+            card.Controls.Add(chkAcceptTerms);
+
+            lblError = new Label
+            {
+                ForeColor = Color.FromArgb(200, 70, 70),
+                UseMnemonic = false,
+                Font = new Font("Segoe UI", 8.5F),
+                AutoSize = false,
+                Size = new Size(width - 48, 20),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                Location = new Point(24, checkY + 40),
+                Visible = false
+            };
+            card.Controls.Add(lblError);
+
+            card.Height = checkY + 40 + 20 + 20;
             return card;
         }
 
