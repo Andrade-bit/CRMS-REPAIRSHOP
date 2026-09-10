@@ -4,6 +4,7 @@ using CRMS.winforms; // Login lives here (lowercase "winforms", unlike this file
 using CRMS.Winforms.Admin;
 using CRMS.winforms.Api;
 using CRMS.winforms.StaffView;
+using CRMS.winforms.SuperAdmin;
 
 namespace CRMS.Winforms
 {
@@ -53,7 +54,11 @@ namespace CRMS.Winforms
                     return;
             }
 
-            if (loginResult.Roles.Contains("Admin") || loginResult.Roles.Contains("Superadmin"))
+            if (loginResult.Roles.Contains("Superadmin"))
+            {
+                Application.Run(new SuperAdminMainForm(loginResult.FullName));
+            }
+            else if (loginResult.Roles.Contains("Admin"))
             {
                 Application.Run(new AdminMainForm());
             }

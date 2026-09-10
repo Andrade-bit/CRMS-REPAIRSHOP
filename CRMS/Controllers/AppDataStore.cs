@@ -55,6 +55,36 @@ namespace CRMS.winforms.Controllers
         public DateTime SentAt { get; set; } = DateTime.Now;
     }
 
+    /// <summary>Subscription states a Superadmin can put a tenant shop into.</summary>
+    public static class TenantSubscriptionStatus
+    {
+        public const string Active = "Active";
+        public const string Suspended = "Suspended";
+
+        public static readonly string[] All = { Active, Suspended };
+    }
+
+    /// <summary>One repair shop onboarded onto the platform (a tenant), with its owning Admin account.</summary>
+    public class TenantRecord
+    {
+        public int TenantId { get; set; }
+        public string ShopName { get; set; } = string.Empty;
+        public string AdminFullName { get; set; } = string.Empty;
+        public string AdminUsername { get; set; } = string.Empty;
+        public string SubscriptionStatus { get; set; } = TenantSubscriptionStatus.Active;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+    }
+
+    /// <summary>One published version of the Terms &amp; Conditions shown to customers.</summary>
+    public class TermsVersionRecord
+    {
+        public int TermsId { get; set; }
+        public string Version { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public bool IsCurrent { get; set; }
+    }
+
     /// <summary>
     /// In-memory stand-in for the tenant database while the desktop client talks
     /// straight to view-layer controllers instead of the API/EF Core stack. Every
@@ -65,16 +95,22 @@ namespace CRMS.winforms.Controllers
     {
         private static int _nextTicketId = 1001;
         private static int _nextAccountId = 1;
+        private static int _nextTenantId = 1;
+        private static int _nextTermsId = 1;
 
         private static readonly List<TicketRecord> _pendingTickets = new();
         private static readonly List<TicketRecord> _ticketHistory = new();
         private static readonly List<AccountRecord> _accounts = new();
         private static readonly List<NotificationRecord> _notifications = new();
+        private static readonly List<TenantRecord> _tenants = new();
+        private static readonly List<TermsVersionRecord> _termsVersions = new();
 
         public static IReadOnlyList<TicketRecord> PendingTickets => _pendingTickets;
         public static IReadOnlyList<TicketRecord> TicketHistory => _ticketHistory;
         public static IReadOnlyList<AccountRecord> Accounts => _accounts;
         public static IReadOnlyList<NotificationRecord> Notifications => _notifications;
+        public static IReadOnlyList<TenantRecord> Tenants => _tenants;
+        public static IReadOnlyList<TermsVersionRecord> TermsVersions => _termsVersions;
 
         public static TicketRecord AddTicket(
             string firstName, string middleName, string lastName,
@@ -132,6 +168,56 @@ namespace CRMS.winforms.Controllers
             };
             _accounts.Add(account);
             return account;
+        }
+
+        // ===================== Tenants / subscriptions (Superadmin) =====================
+
+        /// <summary>Onboards a new repair shop: its Admin account plus the tenant record Superadmin manages.</summary>
+        public static TenantRecord AddTenant(string shopName, string adminFullName, string adminUsername)
+        {
+            var tenant = new TenantRecord
+            {
+                TenantId = _nextTenantId++,
+                ShopName = shopName,
+                AdminFullName = adminFullName,
+                AdminUsername = adminUsername,
+                SubscriptionStatus = TenantSubscriptionStatus.Active
+            };
+            _tenants.Add(tenant);
+            return tenant;
+        }
+
+        public static void UpdateTenantSubscriptionStatus(int tenantId, string newStatus)
+        {
+            var tenant = _tenants.FirstOrDefault(t => t.TenantId == tenantId);
+            if (tenant is null) return;
+
+            tenant.SubscriptionStatus = newStatus;
+        }
+
+        // ===================== Terms & Conditions (Superadmin) =====================
+
+        /// <summary>Publishes a new Terms &amp; Conditions version and makes it the current one.</summary>
+        public static TermsVersionRecord AddTermsVersion(string version, string content)
+        {
+            foreach (var existing in _termsVersions)
+                existing.IsCurrent = false;
+
+            var record = new TermsVersionRecord
+            {
+                TermsId = _nextTermsId++,
+                Version = version,
+                Content = content,
+                IsCurrent = true
+            };
+            _termsVersions.Add(record);
+            return record;
+        }
+
+        public static void SetCurrentTermsVersion(int termsId)
+        {
+            foreach (var record in _termsVersions)
+                record.IsCurrent = record.TermsId == termsId;
         }
     }
 }
