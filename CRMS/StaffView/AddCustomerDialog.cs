@@ -167,7 +167,12 @@ namespace CRMS.winforms.StaffView
             {
                 Dock = DockStyle.Bottom,
                 BackColor = PageBg,
-                Padding = new Padding(16, 10, 4, 6)
+                Padding = new Padding(16, 20, 4, 6)
+            };
+            termsSection.Paint += (s, e) =>
+            {
+                using var pen = new Pen(CardBorder, 1);
+                e.Graphics.DrawLine(pen, 0, 0, termsSection.Width, 0);
             };
 
             int termsCardWidth = ClientSize.Width - termsSection.Padding.Horizontal;
@@ -189,7 +194,7 @@ namespace CRMS.winforms.StaffView
                 Dock = DockStyle.Fill,
                 AutoScroll = true,
                 BackColor = PageBg,
-                Padding = new Padding(16, 8, 4, 12)
+                Padding = new Padding(16, 8, 4, 28)
             };
             Controls.Add(scroll);
 
