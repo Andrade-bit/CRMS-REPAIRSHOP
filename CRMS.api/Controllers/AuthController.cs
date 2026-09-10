@@ -32,7 +32,10 @@ namespace CRMS.api.Controllers
         // TEMPORARY — for creating your first accounts only. Delete this endpoint
         // once you have real staff/admin accounts and a proper "create staff" flow
         // built (which should require an Admin to be logged in to call it).
-        public record RegisterRequest(string Username, string Password, string FullName, string Role);
+        // CompanyId is required for an Admin account — it's what the JWT's
+        // "CompanyId" claim carries, which is how TenantConnectionService knows
+        // which tenant's hardcoded appsettings.json credentials to use for them.
+        public record RegisterRequest(string Username, string Password, string FullName, string Role, int? CompanyId = null);
 
         [HttpPost("register-temp")]
         public async Task<IActionResult> RegisterTemp(RegisterRequest request)
@@ -41,7 +44,8 @@ namespace CRMS.api.Controllers
             {
                 UserName = request.Username,
                 FullName = request.FullName,
-                Status = "Active"
+                Status = "Active",
+                CompanyId = request.CompanyId
             };
 
             var result = await _userManager.CreateAsync(user, request.Password);

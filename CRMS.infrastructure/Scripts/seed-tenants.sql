@@ -1,36 +1,20 @@
 -- Run against your MASTER database (db66485) in SSMS.
--- Registers tenant a/b/c so TenantConnectionService can resolve their
--- connection strings by CompanyId at runtime.
 --
--- Fill in each <...PASSWORD...> from MonsterASP.net's "Manage" button on
--- that tenant database (the key icon next to its name).
+-- Tenant DB credentials themselves are now hardcoded in CRMS.api's
+-- appsettings.json ("TenantCredentials" section), not stored in a table —
+-- see TenantConnectionService.cs. All this script needs to do is register
+-- each tenant's Company row, so a logged-in Admin's CompanyId claim can be
+-- resolved to a CompanyCode, which is the key TenantConnectionService looks
+-- up in that config section. CompanyCode below must match the
+-- "TenantCredentials:<code>" key exactly (TenantA / TenantB / TenantC).
 
 INSERT INTO dbo.Companies (CompanyCode, CompanyName, IsActive, CreateAt)
 VALUES
-    ('TENANT-A', 'Tenant A', 1, SYSUTCDATETIME()),
-    ('TENANT-B', 'Tenant B', 1, SYSUTCDATETIME()),
-    ('TENANT-C', 'Tenant C', 1, SYSUTCDATETIME());
+    ('TenantA', 'Tenant A', 1, SYSUTCDATETIME()),
+    ('TenantB', 'Tenant B', 1, SYSUTCDATETIME()),
+    ('TenantC', 'Tenant C', 1, SYSUTCDATETIME());
 
-INSERT INTO dbo.CompanyDatabases (CompanyId, ServerName, DatabaseName, ConnectionString, IsActive)
-VALUES
-    (
-        (SELECT CompanyId FROM dbo.Companies WHERE CompanyCode = 'TENANT-A'),
-        'db67075.public.databaseasp.net,1433',
-        'db67075',
-        'Server=db67075.public.databaseasp.net,1433;Database=db67075;User Id=db67075;Password=<TENANT_A_PASSWORD>;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True;',
-        1
-    ),
-    (
-        (SELECT CompanyId FROM dbo.Companies WHERE CompanyCode = 'TENANT-B'),
-        'db67077.public.databaseasp.net,1433',
-        'db67077',
-        'Server=db67077.public.databaseasp.net,1433;Database=db67077;User Id=db67077;Password=<TENANT_B_PASSWORD>;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True;',
-        1
-    ),
-    (
-        (SELECT CompanyId FROM dbo.Companies WHERE CompanyCode = 'TENANT-C'),
-        'db67078.public.databaseasp.net,1433',
-        'db67078',
-        'Server=db67078.public.databaseasp.net,1433;Database=db67078;User Id=db67078;Password=<TENANT_C_PASSWORD>;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True;',
-        1
-    );
+-- Next step: create each tenant's Admin account via POST /api/auth/register-temp,
+-- passing "companyId" as the CompanyId returned for that row above (or query
+-- SELECT CompanyId, CompanyCode FROM dbo.Companies to find it) — that's what
+-- ties that Admin's login to this tenant automatically.
