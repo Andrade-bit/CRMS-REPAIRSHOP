@@ -275,6 +275,17 @@ namespace CRMS.winforms
             base.WndProc(ref m);
         }
 
+        // OnPaint below only fills the rounded shape itself — the four small
+        // corner slivers outside that shape (but still inside the control's
+        // rectangular bounds) are never touched by it, so without this they
+        // show through as the base Button's default (black) background.
+        // Clearing with the parent's color first makes those corners blend
+        // in instead.
+        protected override void OnPaintBackground(PaintEventArgs pevent)
+        {
+            pevent.Graphics.Clear(Parent?.BackColor ?? BackColor);
+        }
+
         protected override void OnPaint(PaintEventArgs e)
         {
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
