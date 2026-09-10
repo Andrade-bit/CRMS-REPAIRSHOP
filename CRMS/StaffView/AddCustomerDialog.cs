@@ -159,18 +159,41 @@ namespace CRMS.winforms.StaffView
             btnSubmit.Click += BtnSubmit_Click;
             footer.Controls.Add(btnSubmit);
 
+            // ===================== Terms & Agreement — fixed, not inside the
+            // scroll area, so the required checkbox is ALWAYS on screen and
+            // can never end up scrolled out of view. Still its own labeled
+            // "Terms & Agreement" section, not a bare checkbox. =====
+            var termsSection = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                BackColor = PageBg,
+                Padding = new Padding(16, 10, 4, 6)
+            };
+
+            int termsCardWidth = ClientSize.Width - termsSection.Padding.Horizontal;
+            var termsCard = BuildTermsCard(termsCardWidth);
+            termsCard.Location = new Point(0, 0);
+            termsCard.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            termsSection.Controls.Add(termsCard);
+            termsSection.Height = termsCard.Height + termsSection.Padding.Vertical;
+
+            // Dock=Bottom siblings stack in reverse add-order (last added
+            // ends up truly at the bottom edge) — add termsSection first so
+            // footer, added after, is the one that lands at the very bottom.
+            Controls.Add(termsSection);
             Controls.Add(footer);
 
-            // ===================== Scrollable content =====================
+            // ===================== Scrollable content (everything else) =====================
             var scroll = new Panel
             {
                 Dock = DockStyle.Fill,
                 AutoScroll = true,
                 BackColor = PageBg,
-                Padding = new Padding(16, 8, 4, 16)
+                Padding = new Padding(16, 8, 4, 12)
             };
             Controls.Add(scroll);
             scroll.BringToFront();
+            termsSection.BringToFront();
             footer.BringToFront();
 
             int cardWidth = ClientSize.Width - scroll.Padding.Horizontal;
@@ -178,8 +201,7 @@ namespace CRMS.winforms.StaffView
             var customerCard = BuildCustomerCard(cardWidth);
             var deviceCard = BuildDeviceCard(cardWidth);
             var serviceCard = BuildServiceCard(cardWidth);
-            var termsCard = BuildTermsCard(cardWidth);
-            var cards = new[] { customerCard, deviceCard, serviceCard, termsCard };
+            var cards = new[] { customerCard, deviceCard, serviceCard };
 
             int y = 0;
             foreach (var card in cards)
