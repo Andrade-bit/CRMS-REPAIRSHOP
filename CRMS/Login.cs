@@ -405,8 +405,18 @@ namespace CRMS.winforms
     {
         public static GraphicsPath Path(Rectangle bounds, int radius)
         {
-            int d = radius * 2;
             var path = new GraphicsPath();
+
+            // A 0-radius arc has a zero-size bounding rectangle, which GDI+
+            // rejects (ArgumentException) — fall back to a plain rectangle
+            // for a genuinely square corner instead of crashing.
+            if (radius <= 0)
+            {
+                path.AddRectangle(bounds);
+                return path;
+            }
+
+            int d = radius * 2;
             var arc = new Rectangle(bounds.Location, new Size(d, d));
 
             path.AddArc(arc, 180, 90);
