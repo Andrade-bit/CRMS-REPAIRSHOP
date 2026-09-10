@@ -1,5 +1,6 @@
 using System;
 using System.Windows.Forms;
+using CRMS.winforms; // Login lives here (lowercase "winforms", unlike this file's own namespace)
 using CRMS.Winforms.Admin;
 using CRMS.winforms.Api;
 using CRMS.winforms.StaffView;
@@ -21,21 +22,9 @@ namespace CRMS.Winforms
 
             ApplicationConfiguration.Initialize();
 
-            // Preview mode — bypasses login so the Staff/Admin screens can be
-            // reviewed directly. Switch to "Admin" to preview that shell instead,
-            // or uncomment the Login Flow below once the API's auth endpoint is
-            // ready to test against.
-            const string PreviewRole = "Staff";
-
-            if (PreviewRole == "Staff")
-                Application.Run(new StaffMainForm());
-            else
-                Application.Run(new AdminMainForm());
-            return;
-
-            /*
-            // Login Flow (uncomment when ready)
-            LoginResult loginResult = null;
+            // Login Flow — signs in against CRMS.api's /api/auth/login, then opens
+            // the Staff or Admin shell depending on the account's role.
+            LoginResult? loginResult = null;
 
             using (var login = new Login())
             {
@@ -76,7 +65,6 @@ namespace CRMS.Winforms
             {
                 MessageBox.Show("This account's role is not yet supported in this app.");
             }
-            */
         }
     }
 }
