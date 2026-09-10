@@ -21,8 +21,16 @@ namespace CRMS.Winforms
 
             ApplicationConfiguration.Initialize();
 
-            // Preview Admin UI (for testing without login)
-            Application.Run(new AdminMainForm());
+            // Preview mode — bypasses login so the Staff/Admin screens can be
+            // reviewed directly. Switch to "Admin" to preview that shell instead,
+            // or uncomment the Login Flow below once the API's auth endpoint is
+            // ready to test against.
+            const string PreviewRole = "Staff";
+
+            if (PreviewRole == "Staff")
+                Application.Run(new StaffMainForm());
+            else
+                Application.Run(new AdminMainForm());
             return;
 
             /*
@@ -62,7 +70,7 @@ namespace CRMS.Winforms
             }
             else if (loginResult.Roles.Contains("Staff"))
             {
-                Application.Run(new StaffForm(loginResult));
+                Application.Run(new StaffMainForm(loginResult.FullName));
             }
             else
             {

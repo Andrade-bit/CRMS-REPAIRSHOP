@@ -1,17 +1,17 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-namespace CRMS.Winforms.Admin
+namespace CRMS.winforms.Shared
 {
     /// <summary>
-    /// Shared colors, typography and layout helpers used by every admin page,
-    /// so headers/cards/spacing stay identical across the app instead of being
-    /// redeclared (and drifting) in each control.
+    /// Shared colors, typography and layout helpers used by every role's shell
+    /// (Admin, Staff, Manager, Superadmin) so headers/sidebars/cards/spacing stay
+    /// identical across the whole app instead of being redeclared per-role.
     /// </summary>
-    internal static class Theme
+    public static class Theme
     {
         // Brand / accent
         public static readonly Color Accent = Color.FromArgb(86, 182, 255);
@@ -34,6 +34,14 @@ namespace CRMS.Winforms.Admin
         public static readonly Color HeaderBg = Color.FromArgb(250, 250, 252);
         public static readonly Color RowAlt = Color.FromArgb(248, 249, 251);
         public static readonly Color SelectionTint = Color.FromArgb(244, 249, 255);
+
+        // Status colors (used by ticket-status pills / chips across Staff + Admin views)
+        public static readonly Color StatusDiagnoseBg = Color.FromArgb(255, 244, 214);
+        public static readonly Color StatusDiagnoseText = Color.FromArgb(150, 108, 12);
+        public static readonly Color StatusRepairingBg = Color.FromArgb(219, 234, 255);
+        public static readonly Color StatusRepairingText = Color.FromArgb(30, 90, 180);
+        public static readonly Color StatusRepairedBg = Color.FromArgb(220, 244, 231);
+        public static readonly Color StatusRepairedText = Color.FromArgb(24, 130, 80);
 
         // Typography
         public static readonly Font FontPageTitle = new Font("Segoe UI", 20F, FontStyle.Bold);
@@ -66,16 +74,17 @@ namespace CRMS.Winforms.Admin
         /// <summary>Clips a control to a rounded rectangle (buttons, chips, etc).</summary>
         public static void ApplyRoundedRegion(Control control, int radius)
         {
+            if (control.Width <= 0 || control.Height <= 0) return;
             control.Region = Region.FromHrgn(
                 CreateRoundRectRgn(0, 0, control.Width, control.Height, radius, radius));
         }
 
         /// <summary>
         /// Standard page header: big title + secondary subtitle, with an optional
-        /// right-aligned action control (e.g. a "Create" button) that stays pinned
+        /// right-aligned action control (e.g. a "+ Add" button) that stays pinned
         /// to the top-right as the page resizes.
         /// </summary>
-        public static Panel CreatePageHeader(string title, string subtitle, Control action = null)
+        public static Panel CreatePageHeader(string title, string subtitle, Control? action = null)
         {
             // Measure the title's actual rendered height instead of hardcoding a
             // Y offset for the subtitle — this is what was causing the overlap
@@ -164,6 +173,83 @@ namespace CRMS.Winforms.Admin
 
             card.Controls.Add(label);
             return card;
+        }
+
+        /// <summary>Bordered card container used to host a DataGridView consistently across pages.</summary>
+        public static Panel CreateTableCard()
+        {
+            var tableCard = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                Padding = new Padding(1)
+            };
+            tableCard.Paint += (s, e) =>
+            {
+                using (Pen pen = new Pen(BorderColor, 1))
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, tableCard.Width - 1, tableCard.Height - 1);
+                }
+            };
+            return tableCard;
+        }
+
+        /// <summary>A DataGridView pre-styled to match the rest of the app (used by every table page).</summary>
+        public static DataGridView CreateStyledGrid()
+        {
+            var grid = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                GridColor = BorderColor,
+                RowHeadersVisible = false,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = false,
+                AllowUserToResizeColumns = false,
+                MultiSelect = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                RowTemplate = { Height = 48 },
+                ColumnHeadersHeight = 44,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                EnableHeadersVisualStyles = false,
+                Font = new Font("Segoe UI", 9.75F),
+                ForeColor = TextPrimary
+            };
+
+            grid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+            {
+                BackColor = HeaderBg,
+                ForeColor = TextSecondary,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Alignment = DataGridViewContentAlignment.MiddleLeft,
+                Padding = new Padding(16, 0, 16, 0)
+            };
+
+            grid.DefaultCellStyle = new DataGridViewCellStyle
+            {
+                BackColor = Color.White,
+                ForeColor = TextPrimary,
+                Font = new Font("Segoe UI", 9.75F),
+                Padding = new Padding(16, 0, 16, 0),
+                SelectionBackColor = SelectionTint,
+                SelectionForeColor = TextPrimary
+            };
+
+            grid.AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle
+            {
+                BackColor = RowAlt,
+                ForeColor = TextPrimary,
+                Font = new Font("Segoe UI", 9.75F),
+                Padding = new Padding(16, 0, 16, 0),
+                SelectionBackColor = SelectionTint,
+                SelectionForeColor = TextPrimary
+            };
+
+            return grid;
         }
     }
 }

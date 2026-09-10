@@ -1,0 +1,439 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
+using CRMS.winforms; // reuses RoundedPanel/RoundedButton/RoundedTextBox from Login.cs
+using CRMS.winforms.Shared;
+
+namespace CRMS.winforms.StaffView
+{
+    /// <summary>
+    /// Popup shown when Staff clicks "+ Add Customer": collects the walk-in
+    /// customer's details, the device concern, an estimated service fee built
+    /// from the parts/services picked, and requires the 24-hour-no-cancellation
+    /// terms to be accepted before the ticket can be submitted.
+    /// </summary>
+    public class AddCustomerDialog : Form
+    {
+        private static readonly Color CardBorder = Color.FromArgb(232, 234, 238);
+        private static readonly Color FieldFill = Color.FromArgb(249, 249, 251);
+        private static readonly Color DisabledGray = Color.FromArgb(163, 169, 181);
+        private static readonly Color DisabledGrayHover = Color.FromArgb(150, 156, 168);
+
+        private static readonly (string Name, decimal Price)[] ServiceOptions =
+        {
+            ("Diagnostic Fee", 25.00m),
+            ("RAM Module", 45.00m),
+            ("SSD (256 GB)", 80.00m),
+            ("Battery Replacement", 55.00m),
+            ("Screen / Display", 120.00m),
+            ("Thermal Paste", 15.00m),
+            ("Keyboard Replacement", 90.00m),
+            ("Charger / Adapter", 35.00m),
+        };
+
+        private RoundedTextBox txtFirstName = null!;
+        private RoundedTextBox txtMiddleName = null!;
+        private RoundedTextBox txtLastName = null!;
+        private RoundedTextBox txtPhone = null!;
+        private RoundedTextBox txtEmail = null!;
+        private RoundedTextBox txtDeviceName = null!;
+        private RoundedMultilineBox txtConcern = null!;
+        private Label lblTotalValue = null!;
+        private Label lblSelectedCount = null!;
+        private CheckBox chkAcceptTerms = null!;
+        private RoundedButton btnSubmit = null!;
+        private Label lblError = null!;
+
+        private readonly HashSet<string> _selectedServices = new();
+        private readonly Dictionary<string, RoundedButton> _serviceChips = new();
+
+        public string FirstNameValue => txtFirstName.Value.Trim();
+        public string MiddleNameValue => txtMiddleName.Value.Trim();
+        public string LastNameValue => txtLastName.Value.Trim();
+        public string PhoneValue => txtPhone.Value.Trim();
+        public string EmailValue => txtEmail.Value.Trim();
+        public string DeviceNameValue => txtDeviceName.Value.Trim();
+        public string ConcernValue => txtConcern.Value.Trim();
+        public decimal EstimatedCostValue => _selectedServices.Sum(name => ServiceOptions.First(o => o.Name == name).Price);
+
+        public AddCustomerDialog()
+        {
+            BuildLayout();
+        }
+
+        private void BuildLayout()
+        {
+            Text = "Add New Customer";
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            StartPosition = FormStartPosition.CenterParent;
+            ClientSize = new Size(560, 720);
+            BackColor = Color.FromArgb(237, 239, 242);
+            Font = new Font("Segoe UI", 9F);
+
+            var header = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = Color.White };
+            header.Controls.Add(new Label
+            {
+                Text = "Add New Customer",
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Theme.TextPrimary,
+                AutoSize = true,
+                Location = new Point(24, 12)
+            });
+            header.Controls.Add(new Label
+            {
+                Text = "Walk-in intake — device details and estimated fee",
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = Theme.TextSecondary,
+                AutoSize = true,
+                Location = new Point(24, 38)
+            });
+            header.Paint += (s, e) =>
+            {
+                using var pen = new Pen(CardBorder, 1);
+                e.Graphics.DrawLine(pen, 0, header.Height - 1, header.Width, header.Height - 1);
+            };
+            Controls.Add(header);
+
+            var footer = new Panel { Dock = DockStyle.Bottom, Height = 76, BackColor = Color.White, Padding = new Padding(24, 16, 24, 16) };
+            footer.Paint += (s, e) =>
+            {
+                using var pen = new Pen(CardBorder, 1);
+                e.Graphics.DrawLine(pen, 0, 0, footer.Width, 0);
+            };
+
+            var btnCancel = new RoundedButton
+            {
+                Text = "Cancel",
+                Size = new Size(110, 44),
+                Location = new Point(24, 16),
+                BackColor = Color.White,
+                HoverColor = Color.FromArgb(245, 246, 248),
+                ForeColor = Theme.TextPrimary,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+            };
+            btnCancel.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
+            footer.Controls.Add(btnCancel);
+
+            btnSubmit = new RoundedButton
+            {
+                Text = "Submit",
+                Size = new Size(footer.ClientSize.Width - 110 - 24 - 12, 44),
+                BackColor = DisabledGray,
+                HoverColor = DisabledGrayHover,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Enabled = false
+            };
+            void PositionSubmit() => btnSubmit.Location = new Point(footer.ClientSize.Width - btnSubmit.Width - 24, 16);
+            footer.Resize += (s, e) => { PositionSubmit(); btnSubmit.Width = footer.ClientSize.Width - 110 - 24 - 12; };
+            btnSubmit.Click += BtnSubmit_Click;
+            footer.Controls.Add(btnSubmit);
+            PositionSubmit();
+
+            Controls.Add(footer);
+
+            var scroll = new Panel
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true,
+                BackColor = Color.FromArgb(237, 239, 242),
+                Padding = new Padding(20, 16, 20, 16)
+            };
+            Controls.Add(scroll);
+            scroll.BringToFront();
+            footer.BringToFront();
+
+            int cardWidth = ClientSize.Width - 40 - SystemInformation.VerticalScrollBarWidth;
+
+            var customerCard = BuildCustomerCard(cardWidth);
+            var serviceCard = BuildServiceCard(cardWidth);
+            var termsCard = BuildTermsCard(cardWidth);
+
+            int y = 0;
+            foreach (var card in new[] { customerCard, serviceCard, termsCard })
+            {
+                card.Location = new Point(0, y);
+                scroll.Controls.Add(card);
+                y += card.Height + 16;
+            }
+        }
+
+        private RoundedPanel NewCard(int width)
+        {
+            return new RoundedPanel { Width = width, BackColor = Color.White, CornerRadius = 14, BorderColor = CardBorder };
+        }
+
+        private void AddSectionTitle(RoundedPanel card, string text)
+        {
+            card.Controls.Add(new Label
+            {
+                Text = text,
+                Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
+                ForeColor = Theme.TextPrimary,
+                AutoSize = true,
+                Location = new Point(20, 16)
+            });
+        }
+
+        private void AddField(RoundedPanel card, out RoundedTextBox box, string caption, string placeholder, int x, int y, int width, bool isPassword = false)
+        {
+            card.Controls.Add(new Label
+            {
+                Text = caption,
+                Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
+                ForeColor = Theme.TextSecondary,
+                AutoSize = true,
+                Location = new Point(x, y)
+            });
+            box = new RoundedTextBox
+            {
+                Location = new Point(x, y + 18),
+                Size = new Size(width, 36),
+                Placeholder = placeholder,
+                IsPassword = isPassword
+            };
+            card.Controls.Add(box);
+        }
+
+        // ----- Customer + Device Information -----
+        private RoundedPanel BuildCustomerCard(int width)
+        {
+            var card = NewCard(width);
+            AddSectionTitle(card, "👤  Customer & Device Information");
+
+            int fieldsTop = 50;
+            int gap = 16;
+            int triWidth = (width - 40 - gap * 2) / 3;
+            int lastTriWidth = (width - 40) - triWidth * 2 - gap * 2;
+            int halfWidth = (width - 40 - gap) / 2;
+
+            AddField(card, out txtFirstName, "FIRST NAME", "e.g. Maria", 20, fieldsTop, triWidth);
+            AddField(card, out txtMiddleName, "MIDDLE NAME", "e.g. Anne", 20 + triWidth + gap, fieldsTop, triWidth);
+            AddField(card, out txtLastName, "LAST NAME", "e.g. Santos", 20 + (triWidth + gap) * 2, fieldsTop, lastTriWidth);
+
+            AddField(card, out txtPhone, "PHONE NUMBER", "+1 (555) 000-0000", 20, fieldsTop + 62, halfWidth);
+            AddField(card, out txtEmail, "EMAIL ADDRESS", "customer@email.com", 20 + halfWidth + gap, fieldsTop + 62, halfWidth);
+
+            AddField(card, out txtDeviceName, "DEVICE NAME / MODEL", "e.g. MacBook Pro 14\" M3 (2023)", 20, fieldsTop + 124, width - 40);
+
+            card.Controls.Add(new Label
+            {
+                Text = "CUSTOMER'S CONCERN",
+                Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
+                ForeColor = Theme.TextSecondary,
+                AutoSize = true,
+                Location = new Point(20, fieldsTop + 186)
+            });
+            txtConcern = new RoundedMultilineBox
+            {
+                Location = new Point(20, fieldsTop + 204),
+                Size = new Size(width - 40, 68),
+                Placeholder = "Describe the issue in the customer's own words..."
+            };
+            card.Controls.Add(txtConcern);
+
+            card.Height = fieldsTop + 204 + 68 + 20;
+            return card;
+        }
+
+        // ----- Estimated Service Fee -----
+        private RoundedPanel BuildServiceCard(int width)
+        {
+            var card = NewCard(width);
+            AddSectionTitle(card, "🔧  Estimated Service Fee");
+
+            int px = 20, py = 50;
+            const int chipHeight = 46;
+
+            foreach (var option in ServiceOptions)
+            {
+                var chip = MakeServiceChip(option.Name, option.Price);
+                if (px + chip.Width > width - 20)
+                {
+                    px = 20;
+                    py += chipHeight + 10;
+                }
+                chip.Location = new Point(px, py);
+                card.Controls.Add(chip);
+                _serviceChips[option.Name] = chip;
+                px += chip.Width + 10;
+            }
+
+            py += chipHeight + 16;
+
+            var totalStrip = new RoundedPanel
+            {
+                Location = new Point(20, py),
+                Size = new Size(width - 40, 56),
+                BackColor = FieldFill,
+                CornerRadius = 12
+            };
+            card.Controls.Add(totalStrip);
+
+            totalStrip.Controls.Add(new Label
+            {
+                Text = "ESTIMATED TOTAL",
+                Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
+                ForeColor = Theme.TextSecondary,
+                AutoSize = true,
+                Location = new Point(16, 10)
+            });
+            lblSelectedCount = new Label
+            {
+                Text = "0 items selected",
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Theme.TextSecondary,
+                AutoSize = true,
+                Location = new Point(16, 30)
+            };
+            totalStrip.Controls.Add(lblSelectedCount);
+
+            lblTotalValue = new Label
+            {
+                Text = 0m.ToString("$0.00"),
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Theme.Accent,
+                AutoSize = true
+            };
+            totalStrip.Controls.Add(lblTotalValue);
+            void PositionTotal() => lblTotalValue.Location = new Point(totalStrip.Width - lblTotalValue.PreferredWidth - 16, 14);
+            PositionTotal();
+
+            card.Height = py + 56 + 20;
+            return card;
+        }
+
+        private RoundedButton MakeServiceChip(string name, decimal price)
+        {
+            var chip = new RoundedButton
+            {
+                Height = 46,
+                BackColor = FieldFill,
+                HoverColor = Color.FromArgb(240, 241, 245),
+                ForeColor = Theme.TextPrimary,
+                Font = new Font("Segoe UI", 8F),
+                CornerRadius = 10,
+                Text = $"{name}\n{price:$0.00}"
+            };
+            int textWidth = TextRenderer.MeasureText(name, chip.Font).Width;
+            int priceWidth = TextRenderer.MeasureText(price.ToString("$0.00"), new Font("Segoe UI", 7.5F)).Width;
+            chip.Width = Math.Max(textWidth, priceWidth) + 32;
+            chip.Click += (s, e) => ToggleService(name, chip);
+            return chip;
+        }
+
+        private void ToggleService(string name, RoundedButton chip)
+        {
+            var option = ServiceOptions.First(o => o.Name == name);
+            bool selected = !_selectedServices.Contains(name);
+
+            if (selected) _selectedServices.Add(name);
+            else _selectedServices.Remove(name);
+
+            chip.BackColor = selected ? Theme.SelectionTint : FieldFill;
+            chip.HoverColor = selected ? Theme.SelectionTint : Color.FromArgb(240, 241, 245);
+            chip.ForeColor = selected ? Theme.Accent : Theme.TextPrimary;
+            chip.Font = new Font("Segoe UI", 8F, selected ? FontStyle.Bold : FontStyle.Regular);
+            chip.Text = selected ? $"✓  {name}\n{option.Price:$0.00}" : $"{name}\n{option.Price:$0.00}";
+            chip.Invalidate();
+
+            decimal total = EstimatedCostValue;
+            lblSelectedCount.Text = $"{_selectedServices.Count} item{(_selectedServices.Count == 1 ? "" : "s")} selected";
+            lblTotalValue.Text = total.ToString("$0.00");
+            lblTotalValue.Location = new Point(lblTotalValue.Parent!.Width - lblTotalValue.PreferredWidth - 16, 14);
+        }
+
+        // ----- Terms & Agreement -----
+        private RoundedPanel BuildTermsCard(int width)
+        {
+            var card = NewCard(width);
+            AddSectionTitle(card, "📄  Terms & Agreement");
+
+            var termsBox = new Panel
+            {
+                Location = new Point(20, 50),
+                Size = new Size(width - 40, 150),
+                BackColor = FieldFill,
+                AutoScroll = true
+            };
+            card.Controls.Add(termsBox);
+
+            termsBox.Controls.Add(new Label
+            {
+                Text =
+                    "By submitting this service request, the customer agrees to the following terms:\n\n" +
+                    "1. The shop will provide a diagnostic assessment of the device.\n" +
+                    "2. Repair estimates are subject to change upon further inspection.\n" +
+                    "3. Parts ordered on the customer's behalf are non-refundable once sourced.\n" +
+                    "4. The shop is not liable for pre-existing damage or data loss during repair.\n" +
+                    "5. Devices not collected within 30 days of the \"Repaired\" notification may be subject to storage fees.\n\n" +
+                    "24-HOUR CANCELLATION POLICY\n" +
+                    "Once this service request is submitted, it CANNOT be cancelled or refunded after 24 hours have passed. " +
+                    "Cancellations within the first 24 hours must be made in writing or by phone with the shop directly.",
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = Theme.TextPrimary,
+                Location = new Point(14, 10),
+                Size = new Size(width - 40 - 28 - SystemInformation.VerticalScrollBarWidth, 260),
+                AutoSize = false
+            });
+
+            chkAcceptTerms = new CheckBox
+            {
+                Text = "I have read and accept the Terms & Conditions above, including the 24-hour cancellation policy.",
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                ForeColor = Theme.TextPrimary,
+                AutoSize = false,
+                Size = new Size(width - 40, 36),
+                Location = new Point(20, 210)
+            };
+            chkAcceptTerms.CheckedChanged += (s, e) =>
+            {
+                btnSubmit.Enabled = chkAcceptTerms.Checked;
+                btnSubmit.BackColor = chkAcceptTerms.Checked ? Theme.Accent : DisabledGray;
+                btnSubmit.HoverColor = chkAcceptTerms.Checked ? Theme.AccentHover : DisabledGrayHover;
+                btnSubmit.Invalidate();
+            };
+            card.Controls.Add(chkAcceptTerms);
+
+            lblError = new Label
+            {
+                ForeColor = Color.FromArgb(200, 70, 70),
+                Font = new Font("Segoe UI", 8F),
+                AutoSize = false,
+                Size = new Size(width - 40, 20),
+                Location = new Point(20, 252),
+                Visible = false
+            };
+            card.Controls.Add(lblError);
+
+            card.Height = 252 + 20 + 20;
+            return card;
+        }
+
+        private void BtnSubmit_Click(object? sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(FirstNameValue) || string.IsNullOrWhiteSpace(LastNameValue) ||
+                string.IsNullOrWhiteSpace(PhoneValue) || string.IsNullOrWhiteSpace(DeviceNameValue) ||
+                string.IsNullOrWhiteSpace(ConcernValue))
+            {
+                lblError.Text = "Please fill in first name, last name, phone, device name, and concern.";
+                lblError.Visible = true;
+                return;
+            }
+
+            if (!chkAcceptTerms.Checked)
+            {
+                lblError.Text = "The customer must accept the Terms & Conditions to continue.";
+                lblError.Visible = true;
+                return;
+            }
+
+            DialogResult = DialogResult.OK;
+            Close();
+        }
+    }
+}

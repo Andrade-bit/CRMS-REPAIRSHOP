@@ -1,17 +1,22 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
+using CRMS.winforms.Controllers;
+using CRMS.winforms.Shared;
 
 namespace CRMS.Winforms.Admin
 {
     public partial class UserManagementControl : UserControl
     {
+        private readonly AdminController _controller;
+
         private DataGridView userGrid;
         private Panel tableCard;
         private Button createAccountBtn;
 
-        public UserManagementControl()
+        public UserManagementControl(AdminController controller)
         {
+            _controller = controller;
             InitializeComponent();
         }
 
@@ -40,89 +45,25 @@ namespace CRMS.Winforms.Admin
             createAccountBtn.FlatAppearance.MouseOverBackColor = Theme.AccentHover;
             createAccountBtn.FlatAppearance.MouseDownBackColor = Theme.AccentPressed;
             Theme.ApplyRoundedRegion(createAccountBtn, 8);
-            createAccountBtn.Click += (s, e) =>
-            {
-                MessageBox.Show("Open Create Account form here.", "Create Account",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            };
+            createAccountBtn.Click += CreateAccountBtn_Click;
 
             // ============================================
             // TABLE CARD (subtle bordered container)
             // ============================================
-            tableCard = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.White,
-                Padding = new Padding(1)
-            };
-            tableCard.Paint += (s, e) =>
-            {
-                using (Pen pen = new Pen(Theme.BorderColor, 1))
-                {
-                    e.Graphics.DrawRectangle(pen, 0, 0, tableCard.Width - 1, tableCard.Height - 1);
-                }
-            };
+            tableCard = Theme.CreateTableCard();
 
-            userGrid = new DataGridView
-            {
-                Dock = DockStyle.Fill,
-                BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.None,
-                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
-                GridColor = Theme.BorderColor,
-                RowHeadersVisible = false,
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                AllowUserToResizeRows = false,
-                AllowUserToResizeColumns = false,
-                ReadOnly = true,
-                MultiSelect = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                RowTemplate = { Height = 48 },
-                ColumnHeadersHeight = 44,
-                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
-                EnableHeadersVisualStyles = false,
-                Font = new Font("Segoe UI", 9.75F),
-                ForeColor = Theme.TextPrimary
-            };
-
-            userGrid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
-            {
-                BackColor = Theme.HeaderBg,
-                ForeColor = Theme.TextSecondary,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                Alignment = DataGridViewContentAlignment.MiddleLeft,
-                Padding = new Padding(20, 0, 20, 0)
-            };
-
-            userGrid.DefaultCellStyle = new DataGridViewCellStyle
-            {
-                BackColor = Color.White,
-                ForeColor = Theme.TextPrimary,
-                Font = new Font("Segoe UI", 9.75F),
-                Padding = new Padding(20, 0, 20, 0),
-                SelectionBackColor = Theme.SelectionTint,
-                SelectionForeColor = Theme.TextPrimary
-            };
-
-            userGrid.AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle
-            {
-                BackColor = Theme.RowAlt,
-                ForeColor = Theme.TextPrimary,
-                Font = new Font("Segoe UI", 9.75F),
-                Padding = new Padding(20, 0, 20, 0),
-                SelectionBackColor = Theme.SelectionTint,
-                SelectionForeColor = Theme.TextPrimary
-            };
+            userGrid = Theme.CreateStyledGrid();
+            userGrid.ReadOnly = true;
 
             userGrid.Columns.Add("Name", "Name");
+            userGrid.Columns.Add("Username", "Username");
             userGrid.Columns.Add("Role", "Role");
             userGrid.Columns.Add("Status", "Status");
 
             userGrid.Columns["Name"].FillWeight = 160;
-            userGrid.Columns["Role"].FillWeight = 120;
-            userGrid.Columns["Status"].FillWeight = 120;
+            userGrid.Columns["Username"].FillWeight = 140;
+            userGrid.Columns["Role"].FillWeight = 100;
+            userGrid.Columns["Status"].FillWeight = 100;
 
             ShowEmptyState();
 
@@ -141,7 +82,7 @@ namespace CRMS.Winforms.Admin
 
         private void ShowEmptyState()
         {
-            userGrid.Rows.Add("No users found.", "", "");
+            userGrid.Rows.Add("No users found.", "", "", "");
             userGrid.Rows[0].DefaultCellStyle = new DataGridViewCellStyle
             {
                 ForeColor = Theme.TextSecondary,
@@ -151,24 +92,40 @@ namespace CRMS.Winforms.Admin
             };
         }
 
+        private void CreateAccountBtn_Click(object? sender, EventArgs e)
+        {
+            using var dialog = new CreateAccountDialog();
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
+
+            // NOTE: dialog.PasswordValue is where a real account-creation call
+            // (e.g. AuthApiClient.RegisterAsync) would send the password once
+            // this is wired up to the live API — it is intentionally not stored
+            // here since this in-memory grid only needs Name/Username/Role/Status.
+            _controller.CreateAccount(dialog.FullNameValue, dialog.UsernameValue, dialog.RoleValue);
+
+            RefreshAccounts();
+        }
+
         // =========================================================
         // PUBLIC METHODS
         // =========================================================
 
-        public void AddUser(string name, string role, string status)
-        {
-            if (userGrid.Rows.Count == 1 && userGrid.Rows[0].Cells[0].Value?.ToString() == "No users found.")
-            {
-                userGrid.Rows.Clear();
-            }
-
-            userGrid.Rows.Add(name, role, status);
-        }
-
-        public void ClearUsers()
+        /// <summary>Reloads the grid from the controller's account list. Call on every page navigation.</summary>
+        public void RefreshAccounts()
         {
             userGrid.Rows.Clear();
-            ShowEmptyState();
+
+            var accounts = _controller.GetAccounts();
+            if (accounts.Count == 0)
+            {
+                ShowEmptyState();
+                return;
+            }
+
+            foreach (var account in accounts)
+            {
+                userGrid.Rows.Add(account.FullName, account.Username, account.Role, account.Status);
+            }
         }
     }
 }

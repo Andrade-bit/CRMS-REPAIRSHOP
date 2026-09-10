@@ -1,4 +1,5 @@
 ﻿using System.Windows.Forms;
+using CRMS.winforms.Shared;
 
 namespace CRMS.Winforms.Admin
 {

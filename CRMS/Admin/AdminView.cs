@@ -1,9 +1,9 @@
-﻿using CRMS.api.Admin;
-//using CRMS.winforms.Admin;
-using System;
+﻿using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using CRMS.winforms.Controllers;
+using CRMS.winforms.Shared;
 
 namespace CRMS.Winforms.Admin
 {
@@ -23,6 +23,7 @@ namespace CRMS.Winforms.Admin
 
         private NavItem navDashboard;
         private NavItem navUsers;
+        private NavItem navHistory;
         private NavItem navMembership;
         private NavItem navReports;
         private NavItem navSettings;
@@ -35,6 +36,7 @@ namespace CRMS.Winforms.Admin
 
         private DashboardControl dashboardControl;
         private UserManagementControl userManagementControl;
+        private CustomerHistoryControl customerHistoryControl;
         private MembershipControl membershipControl;
         private AnalyticReportControl reportsControl;
         private Panel settingsContent;
@@ -246,25 +248,29 @@ namespace CRMS.Winforms.Admin
             };
 
             navDashboard = new NavItem("Dashboard");
-            navUsers = new NavItem("Users");
+            navUsers = new NavItem("User Management");
+            navHistory = new NavItem("Customer History");
             navMembership = new NavItem("Membership");
             navReports = new NavItem("Reports");
             navSettings = new NavItem("Settings");
 
             navDashboard.Dock = DockStyle.Top;
             navUsers.Dock = DockStyle.Top;
+            navHistory.Dock = DockStyle.Top;
             navMembership.Dock = DockStyle.Top;
             navReports.Dock = DockStyle.Top;
             navSettings.Dock = DockStyle.Top;
 
             navDashboard.Height = 44;
             navUsers.Height = 44;
+            navHistory.Height = 44;
             navMembership.Height = 44;
             navReports.Height = 44;
             navSettings.Height = 44;
 
             navDashboard.Click += (s, e) => NavigatePage("Dashboard", navDashboard);
             navUsers.Click += (s, e) => NavigatePage("Users", navUsers);
+            navHistory.Click += (s, e) => NavigatePage("History", navHistory);
             navMembership.Click += (s, e) => NavigatePage("Membership", navMembership);
             navReports.Click += (s, e) => NavigatePage("Reports", navReports);
             navSettings.Click += (s, e) => NavigatePage("Settings", navSettings);
@@ -273,6 +279,7 @@ namespace CRMS.Winforms.Admin
             navigationPanel.Controls.Add(navSettings);
             navigationPanel.Controls.Add(navReports);
             navigationPanel.Controls.Add(navMembership);
+            navigationPanel.Controls.Add(navHistory);
             navigationPanel.Controls.Add(navUsers);
             navigationPanel.Controls.Add(navDashboard);
 
@@ -302,7 +309,8 @@ namespace CRMS.Winforms.Admin
         private void SetupContentPanels()
         {
             dashboardControl = new DashboardControl { Dock = DockStyle.Fill, Visible = false };
-            userManagementControl = new UserManagementControl { Dock = DockStyle.Fill, Visible = false };
+            userManagementControl = new UserManagementControl(adminController) { Dock = DockStyle.Fill, Visible = false };
+            customerHistoryControl = new CustomerHistoryControl { Dock = DockStyle.Fill, Visible = false };
             membershipControl = new MembershipControl { Dock = DockStyle.Fill, Visible = false };
             reportsControl = new AnalyticReportControl { Dock = DockStyle.Fill, Visible = false };
 
@@ -319,6 +327,7 @@ namespace CRMS.Winforms.Admin
 
             contentPanel.Controls.Add(dashboardControl);
             contentPanel.Controls.Add(userManagementControl);
+            contentPanel.Controls.Add(customerHistoryControl);
             contentPanel.Controls.Add(membershipControl);
             contentPanel.Controls.Add(reportsControl);
             contentPanel.Controls.Add(settingsContent);
@@ -339,6 +348,7 @@ namespace CRMS.Winforms.Admin
         {
             dashboardControl.Visible = false;
             userManagementControl.Visible = false;
+            customerHistoryControl.Visible = false;
             membershipControl.Visible = false;
             reportsControl.Visible = false;
             settingsContent.Visible = false;
@@ -349,7 +359,12 @@ namespace CRMS.Winforms.Admin
                     dashboardControl.Visible = true;
                     break;
                 case "Users":
+                    userManagementControl.RefreshAccounts();
                     userManagementControl.Visible = true;
+                    break;
+                case "History":
+                    customerHistoryControl.LoadData(adminController.GetTicketHistory());
+                    customerHistoryControl.Visible = true;
                     break;
                 case "Membership":
                     membershipControl.Visible = true;
@@ -387,127 +402,5 @@ namespace CRMS.Winforms.Admin
             }
         }
 
-        // =========================================================
-        // AVATAR
-        // =========================================================
-
-        private sealed class AvatarCircle : Panel
-        {
-            private readonly string initials;
-            private static readonly Font InitialsFont = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-
-            public AvatarCircle(string initials)
-            {
-                this.initials = initials;
-                DoubleBuffered = true;
-                BackColor = Theme.PageBg;
-            }
-
-            protected override void OnPaint(PaintEventArgs e)
-            {
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-
-                using (var brush = new SolidBrush(Theme.Accent))
-                {
-                    e.Graphics.FillEllipse(brush, 0, 0, Width - 1, Height - 1);
-                }
-
-                TextRenderer.DrawText(
-                    e.Graphics,
-                    initials,
-                    InitialsFont,
-                    new Rectangle(0, 0, Width, Height),
-                    Color.White,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-            }
-        }
-
-        // =========================================================
-        // NAVIGATION ITEM
-        // =========================================================
-
-        private sealed class NavItem : Panel
-        {
-            private bool active;
-            private bool hover;
-            private bool pressed;
-            private readonly Label textLabel;
-            private const int Inset = 14;
-
-            public NavItem(string text)
-            {
-                DoubleBuffered = true;
-                BackColor = Theme.SidebarBg;
-                Cursor = Cursors.Hand;
-                Padding = new Padding(Inset + 14, 0, Inset, 0);
-
-                textLabel = new Label
-                {
-                    Text = text,
-                    Dock = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    ForeColor = Theme.SidebarText,
-                    Font = Theme.FontNav,
-                    BackColor = Theme.SidebarBg,
-                    Cursor = Cursors.Hand
-                };
-
-                Controls.Add(textLabel);
-
-                textLabel.Click += (s, e) => base.OnClick(EventArgs.Empty);
-
-                MouseEnter += (s, e) => SetHover(true);
-                MouseLeave += (s, e) => SetHover(false);
-                textLabel.MouseEnter += (s, e) => SetHover(true);
-                textLabel.MouseLeave += (s, e) => SetHover(false);
-
-                MouseDown += (s, e) => { pressed = true; Invalidate(); };
-                MouseUp += (s, e) => { pressed = false; Invalidate(); };
-                textLabel.MouseDown += (s, e) => { pressed = true; Invalidate(); };
-                textLabel.MouseUp += (s, e) => { pressed = false; Invalidate(); };
-            }
-
-            private void SetHover(bool value)
-            {
-                hover = value;
-                Color labelBg = active ? Color.White : Theme.SidebarBg;
-                textLabel.BackColor = labelBg;
-                Invalidate();
-            }
-
-            protected override void OnPaint(PaintEventArgs e)
-            {
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-
-                var bounds = new Rectangle(Inset, 2, Math.Max(0, Width - Inset * 2), Math.Max(0, Height - 4));
-
-                Color? pillColor = null;
-                if (active) pillColor = Color.White;
-                else if (pressed) pillColor = Theme.SidebarPressed;
-                else if (hover) pillColor = Theme.SidebarHover;
-
-                if (pillColor.HasValue && bounds.Width > 0 && bounds.Height > 0)
-                {
-                    using (var path = Theme.RoundedRect(bounds, 10))
-                    using (var brush = new SolidBrush(pillColor.Value))
-                    {
-                        e.Graphics.FillPath(brush, path);
-                    }
-                }
-
-                base.OnPaint(e);
-            }
-
-            public void SetActive(bool isActive)
-            {
-                active = isActive;
-
-                textLabel.ForeColor = active ? Theme.SidebarActiveText : Theme.SidebarText;
-                textLabel.Font = active ? Theme.FontNavActive : Theme.FontNav;
-                textLabel.BackColor = active ? Color.White : Theme.SidebarBg;
-
-                Invalidate();
-            }
-        }
     }
 }
