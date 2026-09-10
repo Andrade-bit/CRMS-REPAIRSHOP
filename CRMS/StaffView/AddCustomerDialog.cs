@@ -133,6 +133,7 @@ namespace CRMS.winforms.StaffView
                 Location = new Point(footerPad, btnY),
                 Size = new Size(cancelWidth, btnHeight),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left,
+                CornerRadius = 0, // square, not pill-shaped
                 BackColor = Color.White,
                 HoverColor = Color.FromArgb(245, 246, 248),
                 ForeColor = TitleColor,
@@ -147,6 +148,7 @@ namespace CRMS.winforms.StaffView
                 Location = new Point(footerPad + cancelWidth + btnGap, btnY),
                 Size = new Size(ClientSize.Width - footerPad * 2 - cancelWidth - btnGap, btnHeight),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                CornerRadius = 0, // square, not pill-shaped
                 BackColor = DisabledGray,
                 HoverColor = DisabledGrayHover,
                 ForeColor = Color.White,
@@ -176,15 +178,33 @@ namespace CRMS.winforms.StaffView
             var deviceCard = BuildDeviceCard(cardWidth);
             var serviceCard = BuildServiceCard(cardWidth);
             var termsCard = BuildTermsCard(cardWidth);
+            var cards = new[] { customerCard, deviceCard, serviceCard, termsCard };
 
             int y = 0;
-            foreach (var card in new[] { customerCard, deviceCard, serviceCard, termsCard })
+            foreach (var card in cards)
             {
                 card.Location = new Point(0, y);
-                card.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                 scroll.Controls.Add(card);
                 y += card.Height + 18;
             }
+
+            // Anchor alone was leaving a gap on the right — a vertical
+            // scrollbar's actual on-screen width isn't reliably reflected by
+            // the AutoScroll panel's ClientSize in time for Anchor math to
+            // react to it. Instead, measure the panel's real available width
+            // directly on every resize and apply it to each card ourselves;
+            // each card's own children are still Anchored (a plain, non-
+            // scrolling parent), so they correctly reflow once the card's
+            // Width actually changes.
+            void ReflowCardWidths()
+            {
+                int availableWidth = scroll.ClientSize.Width - scroll.Padding.Horizontal;
+                if (availableWidth <= 0) return;
+                foreach (var card in cards)
+                    card.Width = availableWidth;
+            }
+            scroll.Resize += (s, e) => ReflowCardWidths();
+            ReflowCardWidths();
         }
 
         private RoundedPanel NewCard(int width)
