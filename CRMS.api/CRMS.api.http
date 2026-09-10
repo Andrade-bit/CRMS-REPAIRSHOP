@@ -26,3 +26,56 @@ Content-Type: application/json
 }
 
 ###
+
+# Admin accounts for each tenant — companyId must match that tenant's
+# CompanyId from "SELECT CompanyId, CompanyCode FROM dbo.Companies" (run
+# seed-tenants.sql first). Replace the companyId values below accordingly.
+
+POST {{CRMS.api_HostAddress}}/api/auth/register-temp
+Content-Type: application/json
+
+{
+  "username": "admin.tenanta",
+  "password": "Admin123!",
+  "fullName": "Tenant A Admin",
+  "role": "Admin",
+  "companyId": 1
+}
+
+###
+
+POST {{CRMS.api_HostAddress}}/api/auth/register-temp
+Content-Type: application/json
+
+{
+  "username": "admin.tenantb",
+  "password": "Admin123!",
+  "fullName": "Tenant B Admin",
+  "role": "Admin",
+  "companyId": 2
+}
+
+###
+
+POST {{CRMS.api_HostAddress}}/api/auth/register-temp
+Content-Type: application/json
+
+{
+  "username": "admin.tenantc",
+  "password": "Admin123!",
+  "fullName": "Tenant C Admin",
+  "role": "Admin",
+  "companyId": 3
+}
+
+###
+
+POST {{CRMS.api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin.tenanta",
+  "password": "Admin123!"
+}
+
+###
