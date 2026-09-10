@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using CRMS.winforms.Api;
 using CRMS.winforms.Controllers;
 using CRMS.winforms.Shared;
 
@@ -92,20 +93,42 @@ namespace CRMS.Winforms.Admin
             };
         }
 
-        private void CreateAccountBtn_Click(object? sender, EventArgs e)
+        private async void CreateAccountBtn_Click(object? sender, EventArgs e)
         {
             using var dialog = new CreateAccountDialog();
             if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
-            // NOTE: dialog.PasswordValue is where a real account-creation call
-            // (e.g. AuthApiClient.RegisterAsync) would send the password once
-            // this is wired up to the live API — it is intentionally not stored
-            // here since this in-memory grid only needs Name/Username/Role/Status.
-            _controller.CreateAccount(
-                dialog.FirstNameValue, dialog.MiddleNameValue, dialog.LastNameValue,
-                dialog.UsernameValue, dialog.RoleValue);
+            string fullName = $"{dialog.FirstNameValue} {dialog.MiddleNameValue} {dialog.LastNameValue}"
+                .Replace("  ", " ").Trim();
 
-            RefreshAccounts();
+            createAccountBtn.Enabled = false;
+            try
+            {
+                var client = new AuthApiClient();
+                var (success, message) = await client.RegisterAsync(
+                    _controller.Token, dialog.UsernameValue, dialog.PasswordValue,
+                    fullName, dialog.RoleValue, _controller.CompanyId);
+
+                if (!success)
+                {
+                    MessageBox.Show(FindForm(), $"Could not create the account:\n{message}",
+                        "Create Account Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Also reflect it in the local grid — the account list here is
+                // still an in-memory display; the account itself now really
+                // exists (the call above created it via the API).
+                _controller.CreateAccount(
+                    dialog.FirstNameValue, dialog.MiddleNameValue, dialog.LastNameValue,
+                    dialog.UsernameValue, dialog.RoleValue);
+
+                RefreshAccounts();
+            }
+            finally
+            {
+                createAccountBtn.Enabled = true;
+            }
         }
 
         // =========================================================

@@ -56,10 +56,10 @@ namespace CRMS.Winforms.Admin
         // CONSTRUCTOR
         // =========================================================
 
-        public AdminMainForm()
+        public AdminMainForm(string token = "", int? companyId = null)
         {
             InitializeComponent();
-            adminController = new AdminController();
+            adminController = new AdminController(token, companyId);
             SetupHeader();
             SetupSidebar();
             SetupContentPanels();

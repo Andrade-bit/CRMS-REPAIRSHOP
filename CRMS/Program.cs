@@ -60,7 +60,7 @@ namespace CRMS.Winforms
             }
             else if (loginResult.Roles.Contains("Admin"))
             {
-                Application.Run(new AdminMainForm());
+                Application.Run(new AdminMainForm(loginResult.Token, loginResult.CompanyId));
             }
             else if (loginResult.Roles.Contains("Staff"))
             {

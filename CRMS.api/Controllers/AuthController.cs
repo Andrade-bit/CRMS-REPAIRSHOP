@@ -27,7 +27,7 @@ namespace CRMS.api.Controllers
         }
 
         public record LoginRequest(string Username, string Password);
-        public record LoginResponse(string Token, string FullName, IList<string> Roles);
+        public record LoginResponse(string Token, string FullName, IList<string> Roles, int? CompanyId);
 
         // TEMPORARY — for creating your first accounts only. Delete this endpoint
         // once you have real staff/admin accounts and a proper "create staff" flow
@@ -71,7 +71,7 @@ namespace CRMS.api.Controllers
             var roles = await _userManager.GetRolesAsync(user);
             var token = GenerateJwtToken(user, roles);
 
-            return Ok(new LoginResponse(token, user.FullName, roles));
+            return Ok(new LoginResponse(token, user.FullName, roles, user.CompanyId));
         }
 
         private string GenerateJwtToken(ApplicationUser user, IList<string> roles)

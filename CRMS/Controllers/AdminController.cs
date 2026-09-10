@@ -10,9 +10,17 @@ namespace CRMS.winforms.Controllers
     {
         private string currentPage;
 
-        public AdminController()
+        /// <summary>The logged-in Admin's JWT, used to call authenticated API endpoints (e.g. creating accounts).</summary>
+        public string Token { get; }
+
+        /// <summary>The logged-in Admin's own tenant — new Staff/Manager accounts they create belong to this same CompanyId.</summary>
+        public int? CompanyId { get; }
+
+        public AdminController(string token = "", int? companyId = null)
         {
             currentPage = "Dashboard";
+            Token = token;
+            CompanyId = companyId;
         }
 
         // Changes the current page

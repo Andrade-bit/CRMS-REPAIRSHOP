@@ -19,6 +19,9 @@ namespace CRMS.winforms.Api
 
         [JsonPropertyName("roles")]
         public List<string> Roles { get; set; } = new List<string>();
+
+        [JsonPropertyName("companyId")]
+        public int? CompanyId { get; set; }
     }
 
     public class AuthApiClient
@@ -65,17 +68,19 @@ namespace CRMS.winforms.Api
         }
 
         /// <summary>
-        /// Calls POST /api/auth/register. Requires a valid Admin/Superadmin JWT token.
+        /// Calls POST /api/auth/register-temp to create a Staff/Manager/Admin
+        /// account. companyId ties the new account to the same tenant as the
+        /// Admin creating it (omit for Superadmin/tenant-agnostic accounts).
         /// Returns (true, serverMessage) on success, (false, errorMessage) on failure.
         /// </summary>
         public async Task<(bool Success, string Message)> RegisterAsync(
-            string token, string username, string password, string fullName, string role)
+            string token, string username, string password, string fullName, string role, int? companyId = null)
         {
-            var payload = new { username, password, fullName, role };
+            var payload = new { username, password, fullName, role, companyId };
             string json = JsonSerializer.Serialize(payload);
 
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
-            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/register")
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/register-temp")
             {
                 Content = content
             };
