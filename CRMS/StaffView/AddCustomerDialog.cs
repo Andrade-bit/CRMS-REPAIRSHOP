@@ -454,8 +454,9 @@ namespace CRMS.winforms.StaffView
             var termsBox = new RoundedPanel
             {
                 Location = new Point(24, 62),
-                Size = new Size(width - 48, 96),
+                Size = new Size(width - 48, 110),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                AutoScroll = true, // safety net: if the text ever needs more room than fits, it scrolls instead of silently clipping
                 BackColor = FieldFill,
                 CornerRadius = 12
             };
@@ -474,7 +475,7 @@ namespace CRMS.winforms.StaffView
                 Font = new Font("Segoe UI", 7.7F),
                 ForeColor = SubtleGray,
                 Location = new Point(14, 10),
-                Size = new Size(width - 48 - 28, 76),
+                Size = new Size(width - 48 - 28, 100),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             });
 
@@ -485,7 +486,7 @@ namespace CRMS.winforms.StaffView
                 Font = new Font("Segoe UI", 8.5F),
                 ForeColor = TitleColor,
                 AutoSize = true,
-                Location = new Point(24, 168)
+                Location = new Point(24, 182)
             };
             chkAcceptTerms.CheckedChanged += (s, e) =>
             {
@@ -504,12 +505,12 @@ namespace CRMS.winforms.StaffView
                 AutoSize = false,
                 Size = new Size(width - 48, 20),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                Location = new Point(24, 190),
+                Location = new Point(24, 204),
                 Visible = false
             };
             card.Controls.Add(lblError);
 
-            card.Height = 190 + 20 + 16;
+            card.Height = 204 + 20 + 16;
             return card;
         }
 
