@@ -81,6 +81,7 @@ namespace CRMS.winforms.StaffView
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(620, 720);
             MinimumSize = new Size(640, 580);
+            WindowState = FormWindowState.Maximized; // opens covering the full screen — more room, less scrolling to reach the checkbox
             BackColor = PageBg;
             Font = new Font("Segoe UI", 9F);
 
@@ -113,7 +114,7 @@ namespace CRMS.winforms.StaffView
             // fixed bar rather than embedded in the last card like the
             // original — so it's always reachable without scrolling. =====
             const int footerHeight = 76;
-            const int footerPad = 24;
+            const int footerPad = 16;
             const int btnHeight = 44;
             const int btnGap = 12;
             const int cancelWidth = 110;
@@ -166,7 +167,7 @@ namespace CRMS.winforms.StaffView
                 Dock = DockStyle.Fill,
                 AutoScroll = true,
                 BackColor = PageBg,
-                Padding = new Padding(24, 8, 24, 24)
+                Padding = new Padding(16, 8, 4, 16)
             };
             Controls.Add(scroll);
             scroll.BringToFront();
@@ -185,7 +186,7 @@ namespace CRMS.winforms.StaffView
             {
                 card.Location = new Point(0, y);
                 scroll.Controls.Add(card);
-                y += card.Height + 18;
+                y += card.Height + 12;
             }
 
             // Anchor alone was leaving a gap on the right — a vertical
