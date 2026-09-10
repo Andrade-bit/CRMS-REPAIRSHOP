@@ -1,0 +1,74 @@
+using System;
+using System.Windows.Forms;
+using CRMS.Winforms.Admin;
+using CRMS.winforms.Api;
+using CRMS.winforms.StaffView;
+
+namespace CRMS.Winforms
+{
+    internal static class Program
+    {
+        [STAThread]
+        static void Main()
+        {
+            Application.ThreadException += (s, e) =>
+                MessageBox.Show(e.Exception.ToString(), "Unhandled UI Exception");
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+
+            AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+                MessageBox.Show((e.ExceptionObject as Exception)?.ToString() ?? "Unknown error",
+                    "Unhandled Exception");
+
+            ApplicationConfiguration.Initialize();
+
+            // Preview Admin UI (for testing without login)
+            Application.Run(new AdminMainForm());
+            return;
+
+            /*
+            // Login Flow (uncomment when ready)
+            LoginResult loginResult = null;
+
+            using (var login = new Login())
+            {
+                login.SignInRequested += async (s, e) =>
+                {
+                    login.SetBusy(true);
+                    var client = new AuthApiClient();
+                    var result = await client.LoginAsync(e.Username, e.Password);
+                    login.SetBusy(false);
+
+                    if (result == null)
+                    {
+                        login.ShowError("Invalid username or password.");
+                        return;
+                    }
+
+                    loginResult = result;
+                    login.DialogResult = DialogResult.OK;
+                    login.Close();
+                };
+
+                login.ForgotPasswordRequested += (s, e) => { };
+                var dialogResult = login.ShowDialog();
+
+                if (dialogResult != DialogResult.OK || loginResult == null)
+                    return;
+            }
+
+            if (loginResult.Roles.Contains("Admin") || loginResult.Roles.Contains("Superadmin"))
+            {
+                Application.Run(new AdminMainForm());
+            }
+            else if (loginResult.Roles.Contains("Staff"))
+            {
+                Application.Run(new StaffForm(loginResult));
+            }
+            else
+            {
+                MessageBox.Show("This account's role is not yet supported in this app.");
+            }
+            */
+        }
+    }
+}

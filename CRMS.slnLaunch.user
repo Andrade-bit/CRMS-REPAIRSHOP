@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "CRMS.api\\CRMS.api.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "CRMS\\CRMS.winforms.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

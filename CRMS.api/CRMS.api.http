@@ -1,0 +1,28 @@
+@CRMS.api_HostAddress = http://localhost:5029
+
+GET {{CRMS.api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+
+POST {{CRMS.api_HostAddress}}/api/auth/register-temp
+Content-Type: application/json
+
+{
+  "username": "staff2",
+  "password": "Staff123!",
+  "fullName": "Test Staff Two",
+  "role": "Staff"
+}
+
+###
+
+POST {{CRMS.api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "staff1",
+  "password": "Staff123!"
+}
+
+###

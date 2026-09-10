@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="CRMS.api/CRMS.api.csproj" Id="80eb7739-1e47-4ce7-97b7-8d8bc9bddfca" />
+  <Project Path="CRMS.domain/CRMS.domain.csproj" Id="2ed2caeb-f600-41f3-9c31-9b8263ff0cbb" />
+  <Project Path="CRMS.infrastructure/CRMS.infrastructure.csproj" Id="d72ea969-ec49-4e45-9ad5-8b3f80e28799" />
+  <Project Path="CRMS/CRMS.winforms.csproj" />
+</Solution>
