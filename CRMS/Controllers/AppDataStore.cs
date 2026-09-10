@@ -39,10 +39,15 @@ namespace CRMS.winforms.Controllers
     public class AccountRecord
     {
         public int AccountId { get; set; }
-        public string FullName { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string MiddleName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
         public string Username { get; set; } = string.Empty;
         public string Role { get; set; } = "Staff"; // "Staff" or "Manager"
         public string Status { get; set; } = "Active";
+
+        public string FullName =>
+            string.Join(" ", new[] { FirstName, MiddleName, LastName }.Where(p => !string.IsNullOrWhiteSpace(p)));
     }
 
     /// <summary>A logged notification (email/SMS) sent to a customer about their ticket.</summary>
@@ -156,12 +161,14 @@ namespace CRMS.winforms.Controllers
 
         internal static void LogNotification(NotificationRecord record) => _notifications.Add(record);
 
-        public static AccountRecord AddAccount(string fullName, string username, string role)
+        public static AccountRecord AddAccount(string firstName, string middleName, string lastName, string username, string role)
         {
             var account = new AccountRecord
             {
                 AccountId = _nextAccountId++,
-                FullName = fullName,
+                FirstName = firstName,
+                MiddleName = middleName,
+                LastName = lastName,
                 Username = username,
                 Role = role,
                 Status = "Active"

@@ -101,7 +101,9 @@ namespace CRMS.Winforms.Admin
             // (e.g. AuthApiClient.RegisterAsync) would send the password once
             // this is wired up to the live API — it is intentionally not stored
             // here since this in-memory grid only needs Name/Username/Role/Status.
-            _controller.CreateAccount(dialog.FullNameValue, dialog.UsernameValue, dialog.RoleValue);
+            _controller.CreateAccount(
+                dialog.FirstNameValue, dialog.MiddleNameValue, dialog.LastNameValue,
+                dialog.UsernameValue, dialog.RoleValue);
 
             RefreshAccounts();
         }

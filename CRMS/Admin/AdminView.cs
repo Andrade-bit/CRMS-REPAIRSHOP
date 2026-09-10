@@ -24,7 +24,6 @@ namespace CRMS.Winforms.Admin
         private NavItem navDashboard;
         private NavItem navUsers;
         private NavItem navHistory;
-        private NavItem navMembership;
         private NavItem navReports;
         private NavItem navSettings;
         private NavItem navLogout;
@@ -37,7 +36,6 @@ namespace CRMS.Winforms.Admin
         private DashboardControl dashboardControl;
         private UserManagementControl userManagementControl;
         private CustomerHistoryControl customerHistoryControl;
-        private MembershipControl membershipControl;
         private AnalyticReportControl reportsControl;
         private Panel settingsContent;
 
@@ -250,35 +248,30 @@ namespace CRMS.Winforms.Admin
             navDashboard = new NavItem("Dashboard");
             navUsers = new NavItem("User Management");
             navHistory = new NavItem("Customer History");
-            navMembership = new NavItem("Membership");
             navReports = new NavItem("Reports");
             navSettings = new NavItem("Settings");
 
             navDashboard.Dock = DockStyle.Top;
             navUsers.Dock = DockStyle.Top;
             navHistory.Dock = DockStyle.Top;
-            navMembership.Dock = DockStyle.Top;
             navReports.Dock = DockStyle.Top;
             navSettings.Dock = DockStyle.Top;
 
             navDashboard.Height = 44;
             navUsers.Height = 44;
             navHistory.Height = 44;
-            navMembership.Height = 44;
             navReports.Height = 44;
             navSettings.Height = 44;
 
             navDashboard.Click += (s, e) => NavigatePage("Dashboard", navDashboard);
             navUsers.Click += (s, e) => NavigatePage("Users", navUsers);
             navHistory.Click += (s, e) => NavigatePage("History", navHistory);
-            navMembership.Click += (s, e) => NavigatePage("Membership", navMembership);
             navReports.Click += (s, e) => NavigatePage("Reports", navReports);
             navSettings.Click += (s, e) => NavigatePage("Settings", navSettings);
 
             // Docked-top children stack in reverse add order, so add bottom-most first.
             navigationPanel.Controls.Add(navSettings);
             navigationPanel.Controls.Add(navReports);
-            navigationPanel.Controls.Add(navMembership);
             navigationPanel.Controls.Add(navHistory);
             navigationPanel.Controls.Add(navUsers);
             navigationPanel.Controls.Add(navDashboard);
@@ -311,7 +304,6 @@ namespace CRMS.Winforms.Admin
             dashboardControl = new DashboardControl { Dock = DockStyle.Fill, Visible = false };
             userManagementControl = new UserManagementControl(adminController) { Dock = DockStyle.Fill, Visible = false };
             customerHistoryControl = new CustomerHistoryControl { Dock = DockStyle.Fill, Visible = false };
-            membershipControl = new MembershipControl { Dock = DockStyle.Fill, Visible = false };
             reportsControl = new AnalyticReportControl { Dock = DockStyle.Fill, Visible = false };
 
             settingsContent = new Panel
@@ -328,7 +320,6 @@ namespace CRMS.Winforms.Admin
             contentPanel.Controls.Add(dashboardControl);
             contentPanel.Controls.Add(userManagementControl);
             contentPanel.Controls.Add(customerHistoryControl);
-            contentPanel.Controls.Add(membershipControl);
             contentPanel.Controls.Add(reportsControl);
             contentPanel.Controls.Add(settingsContent);
         }
@@ -349,7 +340,6 @@ namespace CRMS.Winforms.Admin
             dashboardControl.Visible = false;
             userManagementControl.Visible = false;
             customerHistoryControl.Visible = false;
-            membershipControl.Visible = false;
             reportsControl.Visible = false;
             settingsContent.Visible = false;
 
@@ -365,9 +355,6 @@ namespace CRMS.Winforms.Admin
                 case "History":
                     customerHistoryControl.LoadData(adminController.GetTicketHistory());
                     customerHistoryControl.Visible = true;
-                    break;
-                case "Membership":
-                    membershipControl.Visible = true;
                     break;
                 case "Reports":
                     reportsControl.Visible = true;

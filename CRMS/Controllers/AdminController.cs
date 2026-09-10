@@ -38,9 +38,9 @@ namespace CRMS.winforms.Controllers
 
         public IReadOnlyList<AccountRecord> GetAccounts() => AppDataStore.Accounts;
 
-        public AccountRecord CreateAccount(string fullName, string username, string role)
+        public AccountRecord CreateAccount(string firstName, string middleName, string lastName, string username, string role)
         {
-            return AppDataStore.AddAccount(fullName, username, role);
+            return AppDataStore.AddAccount(firstName, middleName, lastName, username, role);
         }
 
         // ===================== Customer History =====================
