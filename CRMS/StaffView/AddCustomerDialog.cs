@@ -192,9 +192,6 @@ namespace CRMS.winforms.StaffView
                 Padding = new Padding(16, 8, 4, 12)
             };
             Controls.Add(scroll);
-            scroll.BringToFront();
-            termsSection.BringToFront();
-            footer.BringToFront();
 
             int cardWidth = ClientSize.Width - scroll.Padding.Horizontal;
 
