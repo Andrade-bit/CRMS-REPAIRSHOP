@@ -296,8 +296,11 @@ namespace CRMS.winforms
                 e.Graphics.FillPath(brush, path);
             }
 
+            // NoPrefix: without it, a bare "&" in Text (e.g. "Confirm & Generate
+            // Ticket") is swallowed as a mnemonic-underline marker instead of
+            // showing up — same issue Label/CheckBox have via UseMnemonic.
             TextRenderer.DrawText(e.Graphics, Text, Font, rect, ForeColor,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
         }
     }
 

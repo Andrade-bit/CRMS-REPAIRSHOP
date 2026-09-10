@@ -12,17 +12,24 @@ namespace CRMS.winforms.StaffView
     /// Popup shown when Staff clicks "+ Add Customer": collects the walk-in
     /// customer's details, the device concern, an estimated service fee built
     /// from the parts/services picked, and requires the 24-hour-no-cancellation
-    /// terms to be accepted before the ticket can be submitted. Resizable /
-    /// maximizable, and every full-width element is anchored so it keeps
-    /// filling the available width correctly at any size.
+    /// terms to be accepted before the ticket can be submitted. Styled to
+    /// match the original compact card design (teal accent, plain totals,
+    /// small inline section icons).
     /// </summary>
     public class AddCustomerDialog : Form
     {
+        // ----- Colors (matches the original walk-in intake design) -----
+        private static readonly Color CardColor = Color.White;
         private static readonly Color CardBorder = Color.FromArgb(232, 234, 238);
+        private static readonly Color TitleColor = Color.FromArgb(33, 37, 41);
+        private static readonly Color SubtleGray = Color.FromArgb(140, 144, 153);
+        private static readonly Color Accent = Color.FromArgb(58, 150, 150);
+        private static readonly Color AccentHover = Color.FromArgb(47, 130, 130);
+        private static readonly Color AccentSoftBg = Color.FromArgb(230, 244, 244);
         private static readonly Color FieldFill = Color.FromArgb(249, 249, 251);
         private static readonly Color DisabledGray = Color.FromArgb(163, 169, 181);
         private static readonly Color DisabledGrayHover = Color.FromArgb(150, 156, 168);
-        private static readonly Color PageBg = Color.FromArgb(240, 242, 245);
+        private static readonly Color PageBg = Color.FromArgb(237, 239, 242);
 
         private static readonly (string Name, decimal Price)[] ServiceOptions =
         {
@@ -45,7 +52,6 @@ namespace CRMS.winforms.StaffView
         private RoundedMultilineBox txtConcern = null!;
         private Label lblTotalValue = null!;
         private Label lblSelectedCount = null!;
-        private RoundedPanel totalStrip = null!;
         private CheckBox chkAcceptTerms = null!;
         private RoundedButton btnSubmit = null!;
         private Label lblError = null!;
@@ -73,28 +79,28 @@ namespace CRMS.winforms.StaffView
             MaximizeBox = true;
             MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(680, 800);
-            MinimumSize = new Size(700, 660); // matches the width every internal measurement below assumes
+            ClientSize = new Size(620, 720);
+            MinimumSize = new Size(640, 580);
             BackColor = PageBg;
-            Font = new Font("Segoe UI", 9.5F);
+            Font = new Font("Segoe UI", 9F);
 
             // ===================== Header =====================
-            var header = new Panel { Dock = DockStyle.Top, Height = 78, BackColor = Color.White };
+            var header = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = CardColor };
             header.Controls.Add(new Label
             {
                 Text = "Add New Customer",
-                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
-                ForeColor = Theme.TextPrimary,
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = TitleColor,
                 AutoSize = true,
-                Location = new Point(28, 16)
+                Location = new Point(24, 12)
             });
             header.Controls.Add(new Label
             {
-                Text = "Walk-in intake — device details and estimated fee",
-                Font = new Font("Segoe UI", 9.5F),
-                ForeColor = Theme.TextSecondary,
+                Text = "Fill in all sections to generate a ticket",
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = SubtleGray,
                 AutoSize = true,
-                Location = new Point(28, 46)
+                Location = new Point(24, 36)
             });
             header.Paint += (s, e) =>
             {
@@ -103,17 +109,16 @@ namespace CRMS.winforms.StaffView
             };
             Controls.Add(header);
 
-            // ===================== Footer (buttons). Positioned once against
-            // the FORM's own ClientSize (valid immediately since ClientSize is
-            // already set above), then Anchor keeps Submit stretching to fill
-            // the width correctly if the dialog is resized/maximized. =====
-            const int footerHeight = 92;
-            const int footerPad = 28;
-            const int btnHeight = 48;
-            const int btnGap = 16;
-            const int cancelWidth = 130;
+            // ===================== Footer (Cancel / Confirm). Kept as a
+            // fixed bar rather than embedded in the last card like the
+            // original — so it's always reachable without scrolling. =====
+            const int footerHeight = 76;
+            const int footerPad = 24;
+            const int btnHeight = 44;
+            const int btnGap = 12;
+            const int cancelWidth = 110;
 
-            var footer = new Panel { Dock = DockStyle.Bottom, Height = footerHeight, BackColor = Color.White };
+            var footer = new Panel { Dock = DockStyle.Bottom, Height = footerHeight, BackColor = CardColor };
             footer.Paint += (s, e) =>
             {
                 using var pen = new Pen(CardBorder, 1);
@@ -130,24 +135,22 @@ namespace CRMS.winforms.StaffView
                 Anchor = AnchorStyles.Top | AnchorStyles.Left,
                 BackColor = Color.White,
                 HoverColor = Color.FromArgb(245, 246, 248),
-                ForeColor = Theme.TextPrimary,
-                Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
-                CornerRadius = 12
+                ForeColor = TitleColor,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
             };
             btnCancel.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
             footer.Controls.Add(btnCancel);
 
             btnSubmit = new RoundedButton
             {
-                Text = "Submit",
+                Text = "Confirm & Generate Ticket",
                 Location = new Point(footerPad + cancelWidth + btnGap, btnY),
                 Size = new Size(ClientSize.Width - footerPad * 2 - cancelWidth - btnGap, btnHeight),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 BackColor = DisabledGray,
                 HoverColor = DisabledGrayHover,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
-                CornerRadius = 12,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
                 Enabled = false
             };
             btnSubmit.Click += BtnSubmit_Click;
@@ -161,7 +164,7 @@ namespace CRMS.winforms.StaffView
                 Dock = DockStyle.Fill,
                 AutoScroll = true,
                 BackColor = PageBg,
-                Padding = new Padding(28, 20, 28, 20)
+                Padding = new Padding(24, 8, 24, 24)
             };
             Controls.Add(scroll);
             scroll.BringToFront();
@@ -170,126 +173,133 @@ namespace CRMS.winforms.StaffView
             int cardWidth = ClientSize.Width - scroll.Padding.Horizontal;
 
             var customerCard = BuildCustomerCard(cardWidth);
+            var deviceCard = BuildDeviceCard(cardWidth);
             var serviceCard = BuildServiceCard(cardWidth);
             var termsCard = BuildTermsCard(cardWidth);
 
             int y = 0;
-            foreach (var card in new[] { customerCard, serviceCard, termsCard })
+            foreach (var card in new[] { customerCard, deviceCard, serviceCard, termsCard })
             {
                 card.Location = new Point(0, y);
                 card.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                 scroll.Controls.Add(card);
-                y += card.Height + 16;
+                y += card.Height + 18;
             }
         }
 
         private RoundedPanel NewCard(int width)
         {
-            return new RoundedPanel { Width = width, BackColor = Color.White, CornerRadius = 16, BorderColor = CardBorder };
+            return new RoundedPanel { Width = width, BackColor = CardColor, CornerRadius = 16, BorderColor = CardBorder };
         }
 
-        private void AddSectionTitle(RoundedPanel card, string icon, string text)
+        private void AddSectionHeader(RoundedPanel card, string icon, string title)
         {
-            var iconBadge = new Panel { Size = new Size(34, 34), Location = new Point(24, 20), BackColor = Theme.SelectionTint };
+            var iconBadge = new Panel { Size = new Size(30, 30), Location = new Point(20, 18), BackColor = AccentSoftBg };
             MakeRound(iconBadge);
             card.Controls.Add(iconBadge);
             iconBadge.Controls.Add(new Label
             {
                 Text = icon,
-                Font = new Font("Segoe UI Emoji", 11F),
-                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI Emoji", 9.5F),
+                Size = new Size(30, 30),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             });
 
-            card.Controls.Add(new Label
+            var titleLbl = new Label
             {
-                Text = text,
-                UseMnemonic = false, // a bare "&" (e.g. "Terms & Agreement") would otherwise be swallowed as an accelerator marker
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
-                ForeColor = Theme.TextPrimary,
-                AutoSize = true,
-                Location = new Point(68, 27)
-            });
+                Text = title,
+                UseMnemonic = false,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                ForeColor = TitleColor,
+                AutoSize = true
+            };
+            card.Controls.Add(titleLbl);
+            titleLbl.Location = new Point(60, 18 + (30 - titleLbl.PreferredHeight) / 2);
         }
 
-        private void AddField(RoundedPanel card, out RoundedTextBox box, string caption, string placeholder,
-            int x, int y, int width, bool stretchWithCard = false, bool isPassword = false)
+        private void AddLabeledField(RoundedPanel card, out RoundedTextBox box, string caption, string placeholder,
+            int x, int y, int width, bool stretchWithCard = false)
         {
             card.Controls.Add(new Label
             {
                 Text = caption,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                ForeColor = Theme.TextSecondary,
+                Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
+                ForeColor = SubtleGray,
                 AutoSize = true,
                 Location = new Point(x, y)
             });
             box = new RoundedTextBox
             {
-                Location = new Point(x, y + 20),
-                Size = new Size(width, 40),
-                Placeholder = placeholder,
-                IsPassword = isPassword
+                Location = new Point(x, y + 18),
+                Size = new Size(width, 36),
+                Placeholder = placeholder
             };
             if (stretchWithCard)
                 box.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             card.Controls.Add(box);
         }
 
-        // ----- Customer + Device Information -----
+        // ----- Customer Information -----
         private RoundedPanel BuildCustomerCard(int width)
         {
             var card = NewCard(width);
-            AddSectionTitle(card, "👤", "Customer & Device Information");
+            AddSectionHeader(card, "👤", "Customer Information");
 
-            int fieldsTop = 76;
-            int gap = 18;
+            int fieldsTop = 62;
+            int gap = 16;
             int triWidth = (width - 48 - gap * 2) / 3;
             int lastTriWidth = (width - 48) - triWidth * 2 - gap * 2;
             int halfWidth = (width - 48 - gap) / 2;
 
-            // Last field in each row stretches to absorb any extra width when
-            // the dialog is resized wider; earlier fields keep a fixed width.
-            AddField(card, out txtFirstName, "FIRST NAME", "e.g. Maria", 24, fieldsTop, triWidth);
-            AddField(card, out txtMiddleName, "MIDDLE NAME", "e.g. Anne", 24 + triWidth + gap, fieldsTop, triWidth);
-            AddField(card, out txtLastName, "LAST NAME", "e.g. Santos", 24 + (triWidth + gap) * 2, fieldsTop, lastTriWidth, stretchWithCard: true);
+            AddLabeledField(card, out txtFirstName, "FIRST NAME", "e.g. Maria", 24, fieldsTop, triWidth);
+            AddLabeledField(card, out txtMiddleName, "MIDDLE NAME", "e.g. Anne", 24 + triWidth + gap, fieldsTop, triWidth);
+            AddLabeledField(card, out txtLastName, "LAST NAME", "e.g. Santos", 24 + (triWidth + gap) * 2, fieldsTop, lastTriWidth, stretchWithCard: true);
 
-            int row2 = fieldsTop + 68;
-            AddField(card, out txtPhone, "PHONE NUMBER", "+1 (555) 000-0000", 24, row2, halfWidth);
-            AddField(card, out txtEmail, "EMAIL ADDRESS", "customer@email.com", 24 + halfWidth + gap, row2, halfWidth, stretchWithCard: true);
+            AddLabeledField(card, out txtPhone, "PHONE NUMBER", "+1 (555) 000-0000", 24, fieldsTop + 62, halfWidth);
+            AddLabeledField(card, out txtEmail, "EMAIL ADDRESS", "customer@email.com", 24 + halfWidth + gap, fieldsTop + 62, halfWidth, stretchWithCard: true);
 
-            int row3 = row2 + 68;
-            AddField(card, out txtDeviceName, "DEVICE NAME / MODEL", "e.g. MacBook Pro 14\" M3 (2023)", 24, row3, width - 48, stretchWithCard: true);
+            card.Height = fieldsTop + 62 + 56 + 20;
+            return card;
+        }
 
-            int row4 = row3 + 68;
+        // ----- Device Information -----
+        private RoundedPanel BuildDeviceCard(int width)
+        {
+            var card = NewCard(width);
+            AddSectionHeader(card, "💻", "Device Information");
+
+            int fieldsTop = 62;
+            AddLabeledField(card, out txtDeviceName, "DEVICE NAME / MODEL", "e.g. MacBook Pro 14\" M3 (2023)", 24, fieldsTop, width - 48, stretchWithCard: true);
+
             card.Controls.Add(new Label
             {
                 Text = "CUSTOMER'S CONCERN",
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                ForeColor = Theme.TextSecondary,
+                Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
+                ForeColor = SubtleGray,
                 AutoSize = true,
-                Location = new Point(24, row4)
+                Location = new Point(24, fieldsTop + 62)
             });
             txtConcern = new RoundedMultilineBox
             {
-                Location = new Point(24, row4 + 20),
-                Size = new Size(width - 48, 76),
+                Location = new Point(24, fieldsTop + 80),
+                Size = new Size(width - 48, 72),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 Placeholder = "Describe the issue in the customer's own words..."
             };
             card.Controls.Add(txtConcern);
 
-            card.Height = row4 + 20 + 76 + 24;
+            card.Height = fieldsTop + 62 + 72 + 20;
             return card;
         }
 
-        // ----- Estimated Service Fee -----
+        // ----- Repair Parts & Tools -----
         private RoundedPanel BuildServiceCard(int width)
         {
             var card = NewCard(width);
-            AddSectionTitle(card, "🔧", "Estimated Service Fee");
+            AddSectionHeader(card, "🔧", "Repair Parts & Tools");
 
-            int px = 24, py = 76;
+            int px = 24, py = 62;
             const int chipHeight = 52;
 
             foreach (var option in ServiceOptions)
@@ -305,54 +315,54 @@ namespace CRMS.winforms.StaffView
                 px += chip.Width + 10;
             }
 
-            py += chipHeight + 18;
+            py += chipHeight + 16;
 
-            totalStrip = new RoundedPanel
+            var totalStrip = new RoundedPanel
             {
                 Location = new Point(24, py),
-                Size = new Size(width - 48, 60),
+                Size = new Size(width - 48, 56),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 BackColor = FieldFill,
-                CornerRadius = 14
+                CornerRadius = 12
             };
-            totalStrip.Resize += (s, e) => PositionTotalValue();
+            totalStrip.Resize += (s, e) => PositionTotalValue(totalStrip);
             card.Controls.Add(totalStrip);
 
             totalStrip.Controls.Add(new Label
             {
                 Text = "ESTIMATED TOTAL",
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                ForeColor = Theme.TextSecondary,
+                Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
+                ForeColor = SubtleGray,
                 AutoSize = true,
-                Location = new Point(20, 10)
+                Location = new Point(16, 10)
             });
             lblSelectedCount = new Label
             {
                 Text = "0 items selected",
-                Font = new Font("Segoe UI", 8.5F),
-                ForeColor = Theme.TextSecondary,
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = SubtleGray,
                 AutoSize = true,
-                Location = new Point(20, 32)
+                Location = new Point(16, 30)
             };
             totalStrip.Controls.Add(lblSelectedCount);
 
             lblTotalValue = new Label
             {
                 Text = 0m.ToString("$0.00"),
-                Font = new Font("Segoe UI", 15F, FontStyle.Bold),
-                ForeColor = Theme.Accent,
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Accent,
                 AutoSize = true
             };
             totalStrip.Controls.Add(lblTotalValue);
-            PositionTotalValue();
+            PositionTotalValue(totalStrip);
 
-            card.Height = py + 60 + 24;
+            card.Height = py + 56 + 20;
             return card;
         }
 
-        private void PositionTotalValue()
+        private void PositionTotalValue(RoundedPanel totalStrip)
         {
-            lblTotalValue.Location = new Point(totalStrip.Width - lblTotalValue.PreferredWidth - 20, 15);
+            lblTotalValue.Location = new Point(totalStrip.Width - lblTotalValue.PreferredWidth - 16, 14);
         }
 
         private RoundedButton MakeServiceChip(string name, decimal price)
@@ -362,14 +372,14 @@ namespace CRMS.winforms.StaffView
                 Height = 52,
                 BackColor = FieldFill,
                 HoverColor = Color.FromArgb(240, 241, 245),
-                ForeColor = Theme.TextPrimary,
-                Font = new Font("Segoe UI", 8.75F),
+                ForeColor = TitleColor,
+                Font = new Font("Segoe UI", 8F),
                 CornerRadius = 12,
                 Text = $"{name}\n{price:$0.00}"
             };
             int textWidth = TextRenderer.MeasureText(name, chip.Font).Width;
-            int priceWidth = TextRenderer.MeasureText(price.ToString("$0.00"), new Font("Segoe UI", 8F)).Width;
-            chip.Width = Math.Max(textWidth, priceWidth) + 40;
+            int priceWidth = TextRenderer.MeasureText(price.ToString("$0.00"), new Font("Segoe UI", 7.5F)).Width;
+            chip.Width = Math.Max(textWidth, priceWidth) + 36;
             chip.Click += (s, e) => ToggleService(name, chip);
             return chip;
         }
@@ -382,72 +392,66 @@ namespace CRMS.winforms.StaffView
             if (selected) _selectedServices.Add(name);
             else _selectedServices.Remove(name);
 
-            chip.BackColor = selected ? Theme.SelectionTint : FieldFill;
-            chip.HoverColor = selected ? Theme.SelectionTint : Color.FromArgb(240, 241, 245);
-            chip.ForeColor = selected ? Theme.Accent : Theme.TextPrimary;
-            chip.Font = new Font("Segoe UI", 8.75F, selected ? FontStyle.Bold : FontStyle.Regular);
+            chip.BackColor = selected ? AccentSoftBg : FieldFill;
+            chip.HoverColor = selected ? AccentSoftBg : Color.FromArgb(240, 241, 245);
+            chip.ForeColor = selected ? Accent : TitleColor;
+            chip.Font = new Font("Segoe UI", 8F, selected ? FontStyle.Bold : FontStyle.Regular);
             chip.Text = selected ? $"✓  {name}\n{option.Price:$0.00}" : $"{name}\n{option.Price:$0.00}";
             chip.Invalidate();
 
             decimal total = EstimatedCostValue;
             lblSelectedCount.Text = $"{_selectedServices.Count} item{(_selectedServices.Count == 1 ? "" : "s")} selected";
             lblTotalValue.Text = total.ToString("$0.00");
-            PositionTotalValue();
+            PositionTotalValue((RoundedPanel)lblTotalValue.Parent!);
         }
 
-        // ----- Terms & Agreement (text + the accept checkbox, both here) -----
+        // ----- Terms & Agreement -----
         private RoundedPanel BuildTermsCard(int width)
         {
             var card = NewCard(width);
-            AddSectionTitle(card, "📄", "Terms & Agreement");
+            AddSectionHeader(card, "📄", "Terms & Agreement");
 
-            var termsBox = new Panel
+            var termsBox = new RoundedPanel
             {
-                Location = new Point(24, 76),
-                Size = new Size(width - 48, 190),
+                Location = new Point(24, 62),
+                Size = new Size(width - 48, 96),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 BackColor = FieldFill,
-                AutoScroll = true
+                CornerRadius = 12
             };
             card.Controls.Add(termsBox);
-
             termsBox.Controls.Add(new Label
             {
-                Text =
-                    "By submitting this service request, the customer agrees to the following terms:\n\n" +
-                    "1. The shop will provide a diagnostic assessment of the device.\n" +
-                    "2. Repair estimates are subject to change upon further inspection.\n" +
-                    "3. Parts ordered on the customer's behalf are non-refundable once sourced.\n" +
-                    "4. The shop is not liable for pre-existing damage or data loss during repair.\n" +
-                    "5. Devices not collected within 30 days of the \"Repaired\" notification may be subject to storage fees.\n\n" +
-                    "24-HOUR CANCELLATION POLICY\n" +
-                    "Once this service request is submitted, it CANNOT be cancelled or refunded after 24 hours have passed. " +
-                    "Cancellations within the first 24 hours must be made in writing or by phone with the shop directly.",
-                Font = new Font("Segoe UI", 9F),
-                ForeColor = Theme.TextPrimary,
-                Location = new Point(16, 12),
-                Size = new Size(width - 48 - 32 - SystemInformation.VerticalScrollBarWidth, 280),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                AutoSize = false
+                Text = "By submitting this service request, the customer agrees to the following terms: " +
+                       "the shop will provide a diagnostic assessment within 24-48 hours. Repair estimates " +
+                       "are subject to change upon further inspection. Parts ordered are non-refundable once " +
+                       "sourced. The shop is not liable for pre-existing damage or data loss during repair. " +
+                       "Devices not collected within 30 days of notification may be subject to storage fees.\n\n" +
+                       "24-Hour Cancellation Policy: Customers may cancel or modify a service request without " +
+                       "charge if done within 24 hours of submission. After this period, a diagnostic fee may " +
+                       "apply. Cancellations must be made in writing or via phone.",
+                UseMnemonic = false,
+                Font = new Font("Segoe UI", 7.7F),
+                ForeColor = SubtleGray,
+                Location = new Point(14, 10),
+                Size = new Size(width - 48 - 28, 76),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             });
 
-            int checkY = 76 + 190 + 20;
             chkAcceptTerms = new CheckBox
             {
-                Text = "I have read and accept the Terms & Conditions above, including the 24-hour cancellation policy.",
+                Text = "Customer has read and accepted the terms",
                 UseMnemonic = false,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Theme.TextPrimary,
-                AutoSize = false,
-                Size = new Size(width - 48, 40),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                Location = new Point(24, checkY)
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = TitleColor,
+                AutoSize = true,
+                Location = new Point(24, 168)
             };
             chkAcceptTerms.CheckedChanged += (s, e) =>
             {
                 btnSubmit.Enabled = chkAcceptTerms.Checked;
-                btnSubmit.BackColor = chkAcceptTerms.Checked ? Theme.Accent : DisabledGray;
-                btnSubmit.HoverColor = chkAcceptTerms.Checked ? Theme.AccentHover : DisabledGrayHover;
+                btnSubmit.BackColor = chkAcceptTerms.Checked ? Accent : DisabledGray;
+                btnSubmit.HoverColor = chkAcceptTerms.Checked ? AccentHover : DisabledGrayHover;
                 btnSubmit.Invalidate();
             };
             card.Controls.Add(chkAcceptTerms);
@@ -456,16 +460,16 @@ namespace CRMS.winforms.StaffView
             {
                 ForeColor = Color.FromArgb(200, 70, 70),
                 UseMnemonic = false,
-                Font = new Font("Segoe UI", 8.5F),
+                Font = new Font("Segoe UI", 8F),
                 AutoSize = false,
                 Size = new Size(width - 48, 20),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                Location = new Point(24, checkY + 40),
+                Location = new Point(24, 190),
                 Visible = false
             };
             card.Controls.Add(lblError);
 
-            card.Height = checkY + 40 + 20 + 20;
+            card.Height = 190 + 20 + 16;
             return card;
         }
 
