@@ -349,7 +349,7 @@ namespace CRMS.Winforms.Admin
                     dashboardControl.Visible = true;
                     break;
                 case "Users":
-                    userManagementControl.RefreshAccounts();
+                    _ = userManagementControl.RefreshAccounts();
                     userManagementControl.Visible = true;
                     break;
                 case "History":

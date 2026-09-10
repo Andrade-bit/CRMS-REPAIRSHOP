@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using CRMS.winforms.Api;
 using CRMS.winforms.Controllers;
@@ -54,17 +55,36 @@ namespace CRMS.Winforms.Admin
             tableCard = Theme.CreateTableCard();
 
             userGrid = Theme.CreateStyledGrid();
-            userGrid.ReadOnly = true;
+            userGrid.RowTemplate.Height = 52;
 
             userGrid.Columns.Add("Name", "Name");
             userGrid.Columns.Add("Username", "Username");
             userGrid.Columns.Add("Role", "Role");
             userGrid.Columns.Add("Status", "Status");
 
-            userGrid.Columns["Name"].FillWeight = 160;
-            userGrid.Columns["Username"].FillWeight = 140;
-            userGrid.Columns["Role"].FillWeight = 100;
-            userGrid.Columns["Status"].FillWeight = 100;
+            var editColumn = new DataGridViewButtonColumn
+            {
+                Name = "Edit",
+                HeaderText = "",
+                Text = "Change Password",
+                UseColumnTextForButtonValue = true,
+                FlatStyle = FlatStyle.Flat
+            };
+            userGrid.Columns.Add(editColumn);
+
+            userGrid.Columns["Name"].FillWeight = 150;
+            userGrid.Columns["Username"].FillWeight = 130;
+            userGrid.Columns["Role"].FillWeight = 90;
+            userGrid.Columns["Status"].FillWeight = 90;
+            userGrid.Columns["Edit"].FillWeight = 150;
+
+            foreach (DataGridViewColumn column in userGrid.Columns)
+            {
+                if (column.Name == "Edit") continue;
+                column.ReadOnly = true;
+            }
+
+            userGrid.CellClick += UserGrid_CellClick;
 
             ShowEmptyState();
 
@@ -84,6 +104,7 @@ namespace CRMS.Winforms.Admin
         private void ShowEmptyState()
         {
             userGrid.Rows.Add("No users found.", "", "", "");
+            userGrid.Rows[0].ReadOnly = true;
             userGrid.Rows[0].DefaultCellStyle = new DataGridViewCellStyle
             {
                 ForeColor = Theme.TextSecondary,
@@ -98,16 +119,12 @@ namespace CRMS.Winforms.Admin
             using var dialog = new CreateAccountDialog();
             if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
-            string fullName = $"{dialog.FirstNameValue} {dialog.MiddleNameValue} {dialog.LastNameValue}"
-                .Replace("  ", " ").Trim();
-
             createAccountBtn.Enabled = false;
             try
             {
-                var client = new AuthApiClient();
-                var (success, message) = await client.RegisterAsync(
-                    _controller.Token, dialog.UsernameValue, dialog.PasswordValue,
-                    fullName, dialog.RoleValue, _controller.CompanyId);
+                var (success, message) = await _controller.CreateAccountAsync(
+                    dialog.FirstNameValue, dialog.MiddleNameValue, dialog.LastNameValue,
+                    dialog.UsernameValue, dialog.PasswordValue, dialog.RoleValue);
 
                 if (!success)
                 {
@@ -116,14 +133,7 @@ namespace CRMS.Winforms.Admin
                     return;
                 }
 
-                // Also reflect it in the local grid — the account list here is
-                // still an in-memory display; the account itself now really
-                // exists (the call above created it via the API).
-                _controller.CreateAccount(
-                    dialog.FirstNameValue, dialog.MiddleNameValue, dialog.LastNameValue,
-                    dialog.UsernameValue, dialog.RoleValue);
-
-                RefreshAccounts();
+                await RefreshAccounts();
             }
             finally
             {
@@ -131,26 +141,56 @@ namespace CRMS.Winforms.Admin
             }
         }
 
+        private async void UserGrid_CellClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            if (userGrid.Columns[e.ColumnIndex].Name != "Edit") return;
+
+            var row = userGrid.Rows[e.RowIndex];
+            if (row.Tag is not UserAccount account) return;
+
+            using var dialog = new ChangePasswordDialog(account.Username, account.FullName);
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
+
+            var (success, message) = await _controller.ResetPasswordAsync(account.Username, dialog.NewPasswordValue);
+
+            if (!success)
+            {
+                MessageBox.Show(FindForm(), $"Could not update the password:\n{message}",
+                    "Change Password Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            MessageBox.Show(FindForm(), $"Password updated for {account.FullName}.",
+                "Password Changed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
         // =========================================================
         // PUBLIC METHODS
         // =========================================================
 
-        /// <summary>Reloads the grid from the controller's account list. Call on every page navigation.</summary>
-        public void RefreshAccounts()
+        /// <summary>Reloads the grid with real accounts for this Admin's tenant. Call on every page navigation.</summary>
+        public async Task RefreshAccounts()
         {
+            userGrid.CellClick -= UserGrid_CellClick;
             userGrid.Rows.Clear();
 
-            var accounts = _controller.GetAccounts();
+            var accounts = await _controller.GetAccountsAsync();
+
             if (accounts.Count == 0)
             {
                 ShowEmptyState();
-                return;
+            }
+            else
+            {
+                foreach (var account in accounts)
+                {
+                    int rowIndex = userGrid.Rows.Add(account.FullName, account.Username, account.Role, account.Status);
+                    userGrid.Rows[rowIndex].Tag = account;
+                }
             }
 
-            foreach (var account in accounts)
-            {
-                userGrid.Rows.Add(account.FullName, account.Username, account.Role, account.Status);
-            }
+            userGrid.CellClick += UserGrid_CellClick;
         }
     }
 }

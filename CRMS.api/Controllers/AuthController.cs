@@ -1,6 +1,7 @@
 ﻿using CRMS.domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -55,6 +56,51 @@ namespace CRMS.api.Controllers
             await _userManager.AddToRoleAsync(user, request.Role);
 
             return Ok($"Created {request.Role} account for {request.Username}.");
+        }
+
+        public record UserAccountResponse(string Username, string FullName, string Role, string Status);
+
+        // TEMPORARY — same simple/unauthenticated pattern as register-temp.
+        // Lists accounts for one tenant (or every account if companyId is omitted).
+        [HttpGet("users")]
+        public async Task<ActionResult<List<UserAccountResponse>>> GetUsers([FromQuery] int? companyId)
+        {
+            var query = _userManager.Users.AsQueryable();
+            if (companyId.HasValue)
+                query = query.Where(u => u.CompanyId == companyId);
+
+            var users = await query.ToListAsync();
+
+            var result = new List<UserAccountResponse>();
+            foreach (var user in users)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                result.Add(new UserAccountResponse(
+                    user.UserName ?? string.Empty, user.FullName, roles.FirstOrDefault() ?? "", user.Status));
+            }
+
+            return Ok(result);
+        }
+
+        // TEMPORARY — lets an Admin set a new password for a Staff/Manager
+        // account directly, without knowing the old one. Should require the
+        // caller to be an authenticated Admin/Superadmin once auth is enforced.
+        public record ResetPasswordRequest(string Username, string NewPassword);
+
+        [HttpPost("reset-password-temp")]
+        public async Task<IActionResult> ResetPasswordTemp(ResetPasswordRequest request)
+        {
+            var user = await _userManager.FindByNameAsync(request.Username);
+            if (user is null)
+                return NotFound("User not found.");
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var result = await _userManager.ResetPasswordAsync(user, token, request.NewPassword);
+
+            if (!result.Succeeded)
+                return BadRequest(result.Errors.Select(e => e.Description));
+
+            return Ok($"Password updated for {request.Username}.");
         }
 
         [HttpPost("login")]

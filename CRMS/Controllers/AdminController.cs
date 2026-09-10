@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using CRMS.winforms.Api;
 
 namespace CRMS.winforms.Controllers
 {
@@ -9,6 +11,7 @@ namespace CRMS.winforms.Controllers
     public class AdminController
     {
         private string currentPage;
+        private readonly AuthApiClient _apiClient = new();
 
         /// <summary>The logged-in Admin's JWT, used to call authenticated API endpoints (e.g. creating accounts).</summary>
         public string Token { get; }
@@ -44,12 +47,20 @@ namespace CRMS.winforms.Controllers
 
         // ===================== User Management =====================
 
-        public IReadOnlyList<AccountRecord> GetAccounts() => AppDataStore.Accounts;
+        /// <summary>Fetches the real account list for this Admin's own tenant.</summary>
+        public Task<List<UserAccount>> GetAccountsAsync() => _apiClient.GetUsersAsync(CompanyId);
 
-        public AccountRecord CreateAccount(string firstName, string middleName, string lastName, string username, string role)
+        /// <summary>Creates a real Staff/Manager account, tagged to this Admin's own tenant.</summary>
+        public Task<(bool Success, string Message)> CreateAccountAsync(
+            string firstName, string middleName, string lastName, string username, string password, string role)
         {
-            return AppDataStore.AddAccount(firstName, middleName, lastName, username, role);
+            string fullName = $"{firstName} {middleName} {lastName}".Replace("  ", " ").Trim();
+            return _apiClient.RegisterAsync(Token, username, password, fullName, role, CompanyId);
         }
+
+        /// <summary>Sets a new password for an existing Staff/Manager account.</summary>
+        public Task<(bool Success, string Message)> ResetPasswordAsync(string username, string newPassword) =>
+            _apiClient.ResetPasswordAsync(username, newPassword);
 
         // ===================== Customer History =====================
 

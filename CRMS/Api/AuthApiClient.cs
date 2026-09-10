@@ -24,6 +24,21 @@ namespace CRMS.winforms.Api
         public int? CompanyId { get; set; }
     }
 
+    public class UserAccount
+    {
+        [JsonPropertyName("username")]
+        public string Username { get; set; } = string.Empty;
+
+        [JsonPropertyName("fullName")]
+        public string FullName { get; set; } = string.Empty;
+
+        [JsonPropertyName("role")]
+        public string Role { get; set; } = string.Empty;
+
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = string.Empty;
+    }
+
     public class AuthApiClient
     {
         // Same address used in CRMS.api.http. Move this to a config file later.
@@ -89,6 +104,57 @@ namespace CRMS.winforms.Api
             try
             {
                 var response = await _http.SendAsync(request);
+                string body = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                    return (true, body.Trim('"'));
+
+                return (false, body);
+            }
+            catch (HttpRequestException)
+            {
+                return (false, "Could not reach the server.");
+            }
+        }
+
+        /// <summary>
+        /// Calls GET /api/auth/users, scoped to one tenant. Returns an empty
+        /// list if the request fails for any reason.
+        /// </summary>
+        public async Task<List<UserAccount>> GetUsersAsync(int? companyId)
+        {
+            string url = companyId.HasValue ? $"/api/auth/users?companyId={companyId}" : "/api/auth/users";
+
+            try
+            {
+                var response = await _http.GetAsync(url);
+                if (!response.IsSuccessStatusCode)
+                    return new List<UserAccount>();
+
+                string body = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<List<UserAccount>>(body, _jsonOptions) ?? new List<UserAccount>();
+            }
+            catch (HttpRequestException)
+            {
+                return new List<UserAccount>();
+            }
+        }
+
+        /// <summary>
+        /// Calls POST /api/auth/reset-password-temp to set a new password for
+        /// an existing account. Returns (true, serverMessage) on success,
+        /// (false, errorMessage) on failure.
+        /// </summary>
+        public async Task<(bool Success, string Message)> ResetPasswordAsync(string username, string newPassword)
+        {
+            var payload = new { username, newPassword };
+            string json = JsonSerializer.Serialize(payload);
+
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            try
+            {
+                var response = await _http.PostAsync("/api/auth/reset-password-temp", content);
                 string body = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
