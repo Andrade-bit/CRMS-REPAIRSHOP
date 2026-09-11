@@ -35,6 +35,7 @@ namespace CRMS.winforms.Shared
             historyGrid.Columns.Add("TicketId", "Ticket #");
             historyGrid.Columns.Add("Customer", "Customer");
             historyGrid.Columns.Add("Device", "Device");
+            historyGrid.Columns.Add("HandledBy", "Handled By");
             historyGrid.Columns.Add("Completed", "Completed");
             historyGrid.Columns.Add("Cost", "Cost");
 
@@ -48,11 +49,12 @@ namespace CRMS.winforms.Shared
             };
             historyGrid.Columns.Add(downloadColumn);
 
-            historyGrid.Columns["TicketId"].FillWeight = 70;
-            historyGrid.Columns["Customer"].FillWeight = 150;
-            historyGrid.Columns["Device"].FillWeight = 150;
-            historyGrid.Columns["Completed"].FillWeight = 140;
-            historyGrid.Columns["Cost"].FillWeight = 90;
+            historyGrid.Columns["TicketId"].FillWeight = 60;
+            historyGrid.Columns["Customer"].FillWeight = 130;
+            historyGrid.Columns["Device"].FillWeight = 130;
+            historyGrid.Columns["HandledBy"].FillWeight = 110;
+            historyGrid.Columns["Completed"].FillWeight = 120;
+            historyGrid.Columns["Cost"].FillWeight = 80;
             historyGrid.Columns["Download"].FillWeight = 140;
 
             foreach (DataGridViewColumn column in historyGrid.Columns)
@@ -77,7 +79,7 @@ namespace CRMS.winforms.Shared
 
         private void ShowEmptyState()
         {
-            historyGrid.Rows.Add("No completed tickets yet.", "", "", "", "", "");
+            historyGrid.Rows.Add("No completed tickets yet.", "", "", "", "", "", "");
             historyGrid.Rows[0].ReadOnly = true;
             historyGrid.Rows[0].DefaultCellStyle = new DataGridViewCellStyle
             {
@@ -103,6 +105,7 @@ namespace CRMS.winforms.Shared
                     ticket.TicketId,
                     ticket.FullName,
                     ticket.DeviceName,
+                    string.IsNullOrWhiteSpace(ticket.StaffName) ? "-" : ticket.StaffName,
                     ticket.CompletedAt?.ToString("MMM d, yyyy") ?? "-",
                     ticket.EstimatedCost.ToString("C"));
 

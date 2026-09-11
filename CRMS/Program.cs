@@ -64,7 +64,7 @@ namespace CRMS.Winforms
             }
             else if (loginResult.Roles.Contains("Staff"))
             {
-                Application.Run(new StaffMainForm(loginResult.FullName));
+                Application.Run(new StaffMainForm(loginResult.FullName, loginResult.Token, loginResult.CompanyId));
             }
             else
             {

@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using CRMS.winforms.Controllers;
 using CRMS.winforms.Shared;
@@ -27,10 +28,10 @@ namespace CRMS.winforms.StaffView
         private readonly StaffController staffController;
         private readonly string staffName;
 
-        public StaffMainForm(string staffName = "Staff Name")
+        public StaffMainForm(string staffName = "Staff Name", string token = "", int? companyId = null)
         {
             this.staffName = staffName;
-            staffController = new StaffController();
+            staffController = new StaffController(token, companyId);
             InitializeComponent();
             SetupHeader();
             SetupSidebar();
@@ -188,14 +189,20 @@ namespace CRMS.winforms.StaffView
             switch (pageName)
             {
                 case "Pending":
-                    pendingControl.LoadData();
+                    _ = pendingControl.LoadData();
                     pendingControl.Visible = true;
                     break;
                 case "History":
-                    historyControl.LoadData(staffController.GetTicketHistory());
+                    _ = LoadHistoryAsync();
                     historyControl.Visible = true;
                     break;
             }
+        }
+
+        private async Task LoadHistoryAsync()
+        {
+            var history = await staffController.GetTicketHistoryAsync();
+            historyControl.LoadData(history);
         }
 
         private void SetActiveNavItem(NavItem selectedItem)

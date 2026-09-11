@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using CRMS.winforms.Controllers;
 using CRMS.winforms.Shared;
@@ -353,7 +354,7 @@ namespace CRMS.Winforms.Admin
                     userManagementControl.Visible = true;
                     break;
                 case "History":
-                    customerHistoryControl.LoadData(adminController.GetTicketHistory());
+                    _ = LoadHistoryAsync();
                     customerHistoryControl.Visible = true;
                     break;
                 case "Reports":
@@ -363,6 +364,12 @@ namespace CRMS.Winforms.Admin
                     settingsContent.Visible = true;
                     break;
             }
+        }
+
+        private async Task LoadHistoryAsync()
+        {
+            var history = await adminController.GetTicketHistoryAsync();
+            customerHistoryControl.LoadData(history);
         }
 
         private void SetActiveNavItem(NavItem selectedItem)

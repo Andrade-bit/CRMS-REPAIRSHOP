@@ -51,6 +51,10 @@ namespace CRMS.winforms.Controllers
 
                         col.Item().PaddingTop(8).LineHorizontal(1).LineColor(Colors.Grey.Lighten3);
 
+                        col.Item().PaddingTop(8).Text($"Handled By: {(string.IsNullOrWhiteSpace(ticket.StaffName) ? "-" : ticket.StaffName)}").Bold();
+
+                        col.Item().PaddingTop(8).LineHorizontal(1).LineColor(Colors.Grey.Lighten3);
+
                         col.Item().PaddingTop(8).Text($"Estimated Cost: {ticket.EstimatedCost:C}").Bold().FontSize(13);
                     });
 

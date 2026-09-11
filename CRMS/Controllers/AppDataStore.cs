@@ -30,6 +30,7 @@ namespace CRMS.winforms.Controllers
         public string Status { get; set; } = TicketStatus.Diagnose;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? CompletedAt { get; set; }
+        public string StaffName { get; set; } = string.Empty;
 
         public string FullName =>
             string.Join(" ", new[] { FirstName, MiddleName, LastName }.Where(p => !string.IsNullOrWhiteSpace(p)));

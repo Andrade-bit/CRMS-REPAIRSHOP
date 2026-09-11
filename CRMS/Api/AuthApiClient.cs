@@ -39,6 +39,42 @@ namespace CRMS.winforms.Api
         public string Status { get; set; } = string.Empty;
     }
 
+    public class TicketDto
+    {
+        [JsonPropertyName("ticketId")]
+        public int TicketId { get; set; }
+
+        [JsonPropertyName("customerName")]
+        public string CustomerName { get; set; } = string.Empty;
+
+        [JsonPropertyName("phone")]
+        public string Phone { get; set; } = string.Empty;
+
+        [JsonPropertyName("email")]
+        public string Email { get; set; } = string.Empty;
+
+        [JsonPropertyName("deviceName")]
+        public string DeviceName { get; set; } = string.Empty;
+
+        [JsonPropertyName("concern")]
+        public string Concern { get; set; } = string.Empty;
+
+        [JsonPropertyName("estimatedCost")]
+        public decimal EstimatedCost { get; set; }
+
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = string.Empty;
+
+        [JsonPropertyName("createdAt")]
+        public DateTime CreatedAt { get; set; }
+
+        [JsonPropertyName("completedAt")]
+        public DateTime? CompletedAt { get; set; }
+
+        [JsonPropertyName("staffName")]
+        public string StaffName { get; set; } = string.Empty;
+    }
+
     public class AuthApiClient
     {
         // Same address used in CRMS.api.http. Move this to a config file later.
@@ -160,6 +196,99 @@ namespace CRMS.winforms.Api
                 if (response.IsSuccessStatusCode)
                     return (true, body.Trim('"'));
 
+                return (false, body);
+            }
+            catch (HttpRequestException)
+            {
+                return (false, "Could not reach the server.");
+            }
+        }
+
+        /// <summary>
+        /// Calls POST /api/tickets to create a real Customer + ServiceTicket
+        /// in the caller's own tenant database, attributed to their Staff record.
+        /// </summary>
+        public async Task<(bool Success, string Message, TicketDto? Ticket)> CreateTicketAsync(
+            string token, string firstName, string middleName, string lastName,
+            string phone, string email, string deviceName, string concern, decimal estimatedCost)
+        {
+            var payload = new
+            {
+                firstName,
+                middleName,
+                lastName,
+                phone,
+                email,
+                deviceName,
+                concern,
+                estimatedCost
+            };
+            string json = JsonSerializer.Serialize(payload);
+
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/tickets") { Content = content };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _http.SendAsync(request);
+                string body = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                    return (false, body, null);
+
+                var ticket = JsonSerializer.Deserialize<TicketDto>(body, _jsonOptions);
+                return (true, "Created.", ticket);
+            }
+            catch (HttpRequestException)
+            {
+                return (false, "Could not reach the server.", null);
+            }
+        }
+
+        /// <summary>
+        /// Calls GET /api/tickets, scoped to the caller's tenant.
+        /// status: "pending", "history", or null for everything.
+        /// Returns an empty list if the request fails for any reason.
+        /// </summary>
+        public async Task<List<TicketDto>> GetTicketsAsync(string token, string? status = null)
+        {
+            string url = status is null ? "/api/tickets" : $"/api/tickets?status={status}";
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _http.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                    return new List<TicketDto>();
+
+                string body = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<List<TicketDto>>(body, _jsonOptions) ?? new List<TicketDto>();
+            }
+            catch (HttpRequestException)
+            {
+                return new List<TicketDto>();
+            }
+        }
+
+        /// <summary>Calls PUT /api/tickets/{id}/status. Returns (true, "") on success, (false, errorMessage) on failure.</summary>
+        public async Task<(bool Success, string Message)> UpdateTicketStatusAsync(string token, int ticketId, string status)
+        {
+            var payload = new { status };
+            string json = JsonSerializer.Serialize(payload);
+
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/tickets/{ticketId}/status") { Content = content };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _http.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                    return (true, "");
+
+                string body = await response.Content.ReadAsStringAsync();
                 return (false, body);
             }
             catch (HttpRequestException)

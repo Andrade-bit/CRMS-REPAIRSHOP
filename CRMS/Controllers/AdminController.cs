@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using CRMS.winforms.Api;
 
@@ -64,6 +65,24 @@ namespace CRMS.winforms.Controllers
 
         // ===================== Customer History =====================
 
-        public IReadOnlyList<TicketRecord> GetTicketHistory() => AppDataStore.TicketHistory;
+        /// <summary>Fetches real completed tickets across this Admin's whole tenant (every Staff's work).</summary>
+        public async Task<List<TicketRecord>> GetTicketHistoryAsync()
+        {
+            var tickets = await _apiClient.GetTicketsAsync(Token, "history");
+            return tickets.Select(dto => new TicketRecord
+            {
+                TicketId = dto.TicketId,
+                FirstName = dto.CustomerName,
+                PhoneNumber = dto.Phone,
+                Email = dto.Email,
+                DeviceName = dto.DeviceName,
+                Concern = dto.Concern,
+                EstimatedCost = dto.EstimatedCost,
+                Status = dto.Status,
+                CreatedAt = dto.CreatedAt,
+                CompletedAt = dto.CompletedAt,
+                StaffName = dto.StaffName
+            }).ToList();
+        }
     }
 }

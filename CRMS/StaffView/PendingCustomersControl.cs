@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using CRMS.winforms.Controllers;
 using CRMS.winforms.Shared;
@@ -10,6 +11,7 @@ namespace CRMS.winforms.StaffView
     /// Staff's main working page: every walk-in device that hasn't been marked
     /// "Repaired" yet, with a status dropdown per row (changing it notifies the
     /// customer by email/SMS) and a "+ Add Customer" popup for new intakes.
+    /// Backed by the real per-tenant database via CRMS.api's /api/tickets.
     /// </summary>
     public partial class PendingCustomersControl : UserControl
     {
@@ -128,13 +130,13 @@ namespace CRMS.winforms.StaffView
             };
         }
 
-        /// <summary>Reloads the grid from the controller's current pending tickets. Call on every page navigation.</summary>
-        public void LoadData()
+        /// <summary>Reloads the grid from the real database. Call on every page navigation.</summary>
+        public async Task LoadData()
         {
             pendingGrid.CellValueChanged -= PendingGrid_CellValueChanged;
             pendingGrid.Rows.Clear();
 
-            var pending = _controller.GetPendingTickets();
+            var pending = await _controller.GetPendingTicketsAsync();
 
             if (pending.Count == 0)
             {
@@ -159,7 +161,7 @@ namespace CRMS.winforms.StaffView
             pendingGrid.CellValueChanged += PendingGrid_CellValueChanged;
         }
 
-        private void PendingGrid_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
+        private async void PendingGrid_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
             if (pendingGrid.Columns[e.ColumnIndex].Name != "Status") return;
@@ -170,24 +172,39 @@ namespace CRMS.winforms.StaffView
             string newStatus = row.Cells["Status"].Value?.ToString() ?? TicketStatus.Diagnose;
             string customerName = row.Cells["Customer"].Value?.ToString() ?? "the customer";
 
-            _controller.UpdateTicketStatus(ticketId, newStatus);
+            var (success, message) = await _controller.UpdateTicketStatusAsync(ticketId, newStatus);
+            if (!success)
+            {
+                MessageBox.Show(FindForm(), $"Could not update the status:\n{message}",
+                    "Update Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                await LoadData();
+                return;
+            }
+
             ShowToast($"✓ {customerName} notified by email & SMS — status is now \"{newStatus}\".");
 
             // "Repaired" ends the transaction — the ticket leaves this table for Customer History.
-            LoadData();
+            await LoadData();
         }
 
-        private void AddButton_Click(object? sender, EventArgs e)
+        private async void AddButton_Click(object? sender, EventArgs e)
         {
             using var dialog = new AddCustomerDialog();
             if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
-            _controller.AddCustomer(
+            var (success, message, _) = await _controller.AddCustomerAsync(
                 dialog.FirstNameValue, dialog.MiddleNameValue, dialog.LastNameValue,
                 dialog.PhoneValue, dialog.EmailValue, dialog.DeviceNameValue,
                 dialog.ConcernValue, dialog.EstimatedCostValue);
 
-            LoadData();
+            if (!success)
+            {
+                MessageBox.Show(FindForm(), $"Could not add the customer:\n{message}",
+                    "Add Customer Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            await LoadData();
             ShowToast($"✓ {dialog.FirstNameValue} {dialog.LastNameValue} added to Pending Customers.");
         }
 
