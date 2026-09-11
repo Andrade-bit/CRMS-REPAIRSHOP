@@ -1,4 +1,6 @@
 ﻿using CRMS.domain.Entities;
+using CRMS.infrastructure.Data;
+using CRMS.infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,15 +18,21 @@ namespace CRMS.api.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IConfiguration _config;
+        private readonly MasterCRMSDbContext _masterDb;
+        private readonly ITenantConnectionService _tenantConnectionService;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
-            IConfiguration config)
+            IConfiguration config,
+            MasterCRMSDbContext masterDb,
+            ITenantConnectionService tenantConnectionService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _config = config;
+            _masterDb = masterDb;
+            _tenantConnectionService = tenantConnectionService;
         }
 
         public record LoginRequest(string Username, string Password);
@@ -54,6 +62,45 @@ namespace CRMS.api.Controllers
                 return BadRequest(result.Errors.Select(e => e.Description));
 
             await _userManager.AddToRoleAsync(user, request.Role);
+
+            // A Staff/Manager account also needs a row in their tenant's own
+            // database — that's what a ServiceTicket's StaffId actually links
+            // to (tickets live per-tenant, logins live centrally). Without
+            // this, a newly created Staff account could log in but couldn't
+            // be attributed to any ticket they create.
+            if (request.CompanyId.HasValue && (request.Role == "Staff" || request.Role == "Manager"))
+            {
+                var admin = await _masterDb.Admins
+                    .Include(a => a.ApplicationUser)
+                    .FirstOrDefaultAsync(a => a.ApplicationUser.CompanyId == request.CompanyId);
+
+                if (admin is null)
+                    return BadRequest($"No Admin found for CompanyId {request.CompanyId} — cannot create the tenant-side Staff record.");
+
+                string tenantConnectionString;
+                try
+                {
+                    tenantConnectionString = await _tenantConnectionService.GetTenantConnectionStringAsync(request.CompanyId.Value);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return BadRequest($"Could not resolve tenant database for CompanyId {request.CompanyId}: {ex.Message}");
+                }
+
+                var tenantOptions = new DbContextOptionsBuilder<TenantCRMSDbContext>()
+                    .UseSqlServer(tenantConnectionString)
+                    .Options;
+
+                await using var tenantDb = new TenantCRMSDbContext(tenantOptions);
+                tenantDb.Staff.Add(new Staff
+                {
+                    ApplicationUserId = user.Id,
+                    AdminId = admin.AdminId,
+                    Name = request.FullName,
+                    Status = "Active"
+                });
+                await tenantDb.SaveChangesAsync();
+            }
 
             return Ok($"Created {request.Role} account for {request.Username}.");
         }

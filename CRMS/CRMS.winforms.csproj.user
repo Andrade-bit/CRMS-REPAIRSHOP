@@ -28,6 +28,9 @@
     <Compile Update="Shared\AvatarCircle.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Update="Shared\ChangePasswordDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="Shared\CreateAccountDialog.cs">
       <SubType>Form</SubType>
     </Compile>

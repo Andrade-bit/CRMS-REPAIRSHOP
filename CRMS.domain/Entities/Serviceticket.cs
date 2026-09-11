@@ -21,6 +21,7 @@ namespace CRMS.domain.Entities
         public decimal EstimatedCost { get; set; }
         public string PaymentStatus { get; set; } = "Unpaid";
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? CompletedAt { get; set; }
         public bool TermsAccepted { get; set; }
 
         public ICollection<RepairPart> RepairParts { get; set; } = new List<RepairPart>();

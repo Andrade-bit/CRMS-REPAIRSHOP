@@ -12,9 +12,15 @@ namespace CRMS.winforms.StaffView
     /// Popup shown when Staff clicks "+ Add Customer": collects the walk-in
     /// customer's details, the device concern, an estimated service fee built
     /// from the parts/services picked, and requires the 24-hour-no-cancellation
-    /// terms to be accepted before the ticket can be submitted. Styled to
-    /// match the original compact card design (teal accent, plain totals,
-    /// small inline section icons).
+    /// terms to be accepted before the ticket can be submitted.
+    ///
+    /// LAYOUT NOTE (this was the bug): WinForms lays out docked children in
+    /// REVERSE order of the Controls collection — the control added LAST is
+    /// docked FIRST and takes the outermost edge. So the Dock=Fill scroll area
+    /// must be added FIRST, then the Bottom bars (inner-to-outer), then the
+    /// Top header LAST. Adding Fill last made it cover the whole client area,
+    /// which is why the header sat on top of "Customer Information" and the
+    /// Terms bar sat on top of "ESTIMATED TOTAL".
     /// </summary>
     public class AddCustomerDialog : Form
     {
@@ -30,6 +36,10 @@ namespace CRMS.winforms.StaffView
         private static readonly Color DisabledGray = Color.FromArgb(163, 169, 181);
         private static readonly Color DisabledGrayHover = Color.FromArgb(150, 156, 168);
         private static readonly Color PageBg = Color.FromArgb(237, 239, 242);
+
+        private const int HeaderHeight = 84;   // was 64 — title + subtitle did not fit
+        private const int CardGap = 12;
+        private const int CardPad = 24;
 
         private static readonly (string Name, decimal Price)[] ServiceOptions =
         {
@@ -56,6 +66,16 @@ namespace CRMS.winforms.StaffView
         private RoundedButton btnSubmit = null!;
         private Label lblError = null!;
 
+        private Panel _scroll = null!;
+        private RoundedPanel[] _cards = Array.Empty<RoundedPanel>();
+        private RoundedPanel _serviceCard = null!;
+        private FlowLayoutPanel _chipFlow = null!;
+        private RoundedPanel _totalStrip = null!;
+        private Panel _termsSection = null!;
+        private RoundedPanel _termsCard = null!;
+        private RoundedPanel _termsBox = null!;
+        private Label _termsText = null!;
+
         private readonly HashSet<string> _selectedServices = new();
 
         public string FirstNameValue => txtFirstName.Value.Trim();
@@ -79,40 +99,63 @@ namespace CRMS.winforms.StaffView
             MaximizeBox = true;
             MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(620, 720);
-            MinimumSize = new Size(640, 580);
-            WindowState = FormWindowState.Maximized; // opens covering the full screen — more room, less scrolling to reach the checkbox
+            ClientSize = new Size(720, 780);
+            MinimumSize = new Size(660, 600);
+            WindowState = FormWindowState.Maximized;
             BackColor = PageBg;
             Font = new Font("Segoe UI", 9F);
 
-            // ===================== Header =====================
-            var header = new Panel { Dock = DockStyle.Top, Height = 64, BackColor = CardColor };
-            header.Controls.Add(new Label
+            var scroll = BuildScrollArea();          // Dock = Fill
+            var termsSection = BuildTermsSection();  // Dock = Bottom (inner)
+            var footer = BuildFooter();              // Dock = Bottom (outer)
+            var header = BuildHeader();              // Dock = Top
+
+            // Add order is load-bearing: Fill first, then bottom bars from
+            // inner to outer, header last. Do NOT reorder these four lines.
+            Controls.Add(scroll);
+            Controls.Add(termsSection);
+            Controls.Add(footer);
+            Controls.Add(header);
+
+            ReflowCards();
+        }
+
+        // ===================== Header =====================
+        private Panel BuildHeader()
+        {
+            var header = new Panel { Dock = DockStyle.Top, Height = HeaderHeight, BackColor = CardColor };
+
+            var title = new Label
             {
                 Text = "Add New Customer",
-                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 15F, FontStyle.Bold),
                 ForeColor = TitleColor,
                 AutoSize = true,
-                Location = new Point(24, 12)
-            });
+                Location = new Point(CardPad, 16)
+            };
+            header.Controls.Add(title);
+
             header.Controls.Add(new Label
             {
                 Text = "Fill in all sections to generate a ticket",
-                Font = new Font("Segoe UI", 8.5F),
+                Font = new Font("Segoe UI", 9F),
                 ForeColor = SubtleGray,
                 AutoSize = true,
-                Location = new Point(24, 36)
+                // sits below the measured title instead of a hard-coded y that overlapped it
+                Location = new Point(CardPad, 16 + title.PreferredHeight + 6)
             });
+
             header.Paint += (s, e) =>
             {
                 using var pen = new Pen(CardBorder, 1);
                 e.Graphics.DrawLine(pen, 0, header.Height - 1, header.Width, header.Height - 1);
             };
-            Controls.Add(header);
+            return header;
+        }
 
-            // ===================== Footer (Cancel / Confirm). Kept as a
-            // fixed bar rather than embedded in the last card like the
-            // original — so it's always reachable without scrolling. =====
+        // ===================== Footer =====================
+        private Panel BuildFooter()
+        {
             const int footerHeight = 76;
             const int footerPad = 16;
             const int btnHeight = 44;
@@ -134,7 +177,7 @@ namespace CRMS.winforms.StaffView
                 Location = new Point(footerPad, btnY),
                 Size = new Size(cancelWidth, btnHeight),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left,
-                CornerRadius = 0, // square, not pill-shaped
+                CornerRadius = 0,
                 BackColor = Color.White,
                 HoverColor = Color.FromArgb(245, 246, 248),
                 ForeColor = TitleColor,
@@ -147,9 +190,9 @@ namespace CRMS.winforms.StaffView
             {
                 Text = "Confirm & Generate Ticket",
                 Location = new Point(footerPad + cancelWidth + btnGap, btnY),
-                Size = new Size(ClientSize.Width - footerPad * 2 - cancelWidth - btnGap, btnHeight),
+                Size = new Size(300, btnHeight),   // real width comes from the anchor on first layout
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                CornerRadius = 0, // square, not pill-shaped
+                CornerRadius = 0,
                 BackColor = DisabledGray,
                 HoverColor = DisabledGrayHover,
                 ForeColor = Color.White,
@@ -159,77 +202,56 @@ namespace CRMS.winforms.StaffView
             btnSubmit.Click += BtnSubmit_Click;
             footer.Controls.Add(btnSubmit);
 
-            // ===================== Terms & Agreement — fixed, not inside the
-            // scroll area, so the required checkbox is ALWAYS on screen and
-            // can never end up scrolled out of view. Still its own labeled
-            // "Terms & Agreement" section, not a bare checkbox. =====
-            var termsSection = new Panel
-            {
-                Dock = DockStyle.Bottom,
-                BackColor = PageBg,
-                Padding = new Padding(16, 20, 4, 6)
-            };
-            termsSection.Paint += (s, e) =>
-            {
-                using var pen = new Pen(CardBorder, 1);
-                e.Graphics.DrawLine(pen, 0, 0, termsSection.Width, 0);
-            };
+            // Anchor math needs a correct starting width, so set it once the bar has one.
+            footer.Resize += (s, e) =>
+                btnSubmit.Width = Math.Max(160, footer.ClientSize.Width - footerPad * 2 - cancelWidth - btnGap);
 
-            int termsCardWidth = ClientSize.Width - termsSection.Padding.Horizontal;
-            var termsCard = BuildTermsCard(termsCardWidth);
-            termsCard.Location = new Point(0, 0);
-            termsCard.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            termsSection.Controls.Add(termsCard);
-            termsSection.Height = termsCard.Height + termsSection.Padding.Vertical;
+            return footer;
+        }
 
-            // Dock=Bottom siblings stack in reverse add-order (last added
-            // ends up truly at the bottom edge) — add termsSection first so
-            // footer, added after, is the one that lands at the very bottom.
-            Controls.Add(termsSection);
-            Controls.Add(footer);
-
-            // ===================== Scrollable content (everything else) =====================
-            var scroll = new Panel
+        // ===================== Scrollable content =====================
+        private Panel BuildScrollArea()
+        {
+            _scroll = new Panel
             {
                 Dock = DockStyle.Fill,
                 AutoScroll = true,
                 BackColor = PageBg,
-                Padding = new Padding(16, 8, 4, 28)
+                Padding = new Padding(16, 12, 4, 24)
             };
-            Controls.Add(scroll);
 
-            int cardWidth = ClientSize.Width - scroll.Padding.Horizontal;
-
-            var customerCard = BuildCustomerCard(cardWidth);
-            var deviceCard = BuildDeviceCard(cardWidth);
-            var serviceCard = BuildServiceCard(cardWidth);
-            var cards = new[] { customerCard, deviceCard, serviceCard };
-
-            int y = 0;
-            foreach (var card in cards)
+            int cardWidth = 660;
+            _cards = new[]
             {
-                card.Location = new Point(0, y);
-                scroll.Controls.Add(card);
-                y += card.Height + 12;
-            }
+                BuildCustomerCard(cardWidth),
+                BuildDeviceCard(cardWidth),
+                BuildServiceCard(cardWidth)
+            };
+            foreach (var card in _cards) _scroll.Controls.Add(card);
 
-            // Anchor alone was leaving a gap on the right — a vertical
-            // scrollbar's actual on-screen width isn't reliably reflected by
-            // the AutoScroll panel's ClientSize in time for Anchor math to
-            // react to it. Instead, measure the panel's real available width
-            // directly on every resize and apply it to each card ourselves;
-            // each card's own children are still Anchored (a plain, non-
-            // scrolling parent), so they correctly reflow once the card's
-            // Width actually changes.
-            void ReflowCardWidths()
+            _scroll.Resize += (s, e) => ReflowCards();
+            return _scroll;
+        }
+
+        /// <summary>Measures the panel's real usable width (scrollbar included) and
+        /// restacks the cards vertically. Cheaper and more reliable than Anchor on
+        /// an AutoScroll parent.</summary>
+        private void ReflowCards()
+        {
+            if (_cards.Length == 0) return;
+
+            int available = _scroll.ClientSize.Width - _scroll.Padding.Horizontal;
+            if (available <= 0) return;
+
+            _scroll.SuspendLayout();
+            int y = _scroll.Padding.Top;
+            foreach (var card in _cards)
             {
-                int availableWidth = scroll.ClientSize.Width - scroll.Padding.Horizontal;
-                if (availableWidth <= 0) return;
-                foreach (var card in cards)
-                    card.Width = availableWidth;
+                card.Width = available;
+                card.Location = new Point(_scroll.Padding.Left, y);
+                y += card.Height + CardGap;
             }
-            scroll.Resize += (s, e) => ReflowCardWidths();
-            ReflowCardWidths();
+            _scroll.ResumeLayout();
         }
 
         private RoundedPanel NewCard(int width)
@@ -289,20 +311,20 @@ namespace CRMS.winforms.StaffView
         private RoundedPanel BuildCustomerCard(int width)
         {
             var card = NewCard(width);
-            AddSectionHeader(card, "👤", "Customer Information");
+            AddSectionHeader(card, "\U0001F464", "Customer Information");
 
             int fieldsTop = 62;
             int gap = 16;
-            int triWidth = (width - 48 - gap * 2) / 3;
-            int lastTriWidth = (width - 48) - triWidth * 2 - gap * 2;
-            int halfWidth = (width - 48 - gap) / 2;
+            int triWidth = (width - CardPad * 2 - gap * 2) / 3;
+            int lastTriWidth = (width - CardPad * 2) - triWidth * 2 - gap * 2;
+            int halfWidth = (width - CardPad * 2 - gap) / 2;
 
-            AddLabeledField(card, out txtFirstName, "FIRST NAME", "e.g. Maria", 24, fieldsTop, triWidth);
-            AddLabeledField(card, out txtMiddleName, "MIDDLE NAME", "e.g. Anne", 24 + triWidth + gap, fieldsTop, triWidth);
-            AddLabeledField(card, out txtLastName, "LAST NAME", "e.g. Santos", 24 + (triWidth + gap) * 2, fieldsTop, lastTriWidth, stretchWithCard: true);
+            AddLabeledField(card, out txtFirstName, "FIRST NAME", "e.g. Maria", CardPad, fieldsTop, triWidth);
+            AddLabeledField(card, out txtMiddleName, "MIDDLE NAME", "e.g. Anne", CardPad + triWidth + gap, fieldsTop, triWidth);
+            AddLabeledField(card, out txtLastName, "LAST NAME", "e.g. Santos", CardPad + (triWidth + gap) * 2, fieldsTop, lastTriWidth, stretchWithCard: true);
 
-            AddLabeledField(card, out txtPhone, "PHONE NUMBER", "+1 (555) 000-0000", 24, fieldsTop + 62, halfWidth);
-            AddLabeledField(card, out txtEmail, "EMAIL ADDRESS", "customer@email.com", 24 + halfWidth + gap, fieldsTop + 62, halfWidth, stretchWithCard: true);
+            AddLabeledField(card, out txtPhone, "PHONE NUMBER", "+1 (555) 000-0000", CardPad, fieldsTop + 62, halfWidth);
+            AddLabeledField(card, out txtEmail, "EMAIL ADDRESS", "customer@email.com", CardPad + halfWidth + gap, fieldsTop + 62, halfWidth, stretchWithCard: true);
 
             card.Height = fieldsTop + 62 + 56 + 20;
             return card;
@@ -312,10 +334,11 @@ namespace CRMS.winforms.StaffView
         private RoundedPanel BuildDeviceCard(int width)
         {
             var card = NewCard(width);
-            AddSectionHeader(card, "💻", "Device Information");
+            AddSectionHeader(card, "\U0001F4BB", "Device Information");
 
             int fieldsTop = 62;
-            AddLabeledField(card, out txtDeviceName, "DEVICE NAME / MODEL", "e.g. MacBook Pro 14\" M3 (2023)", 24, fieldsTop, width - 48, stretchWithCard: true);
+            AddLabeledField(card, out txtDeviceName, "DEVICE NAME / MODEL", "e.g. MacBook Pro 14\" M3 (2023)",
+                CardPad, fieldsTop, width - CardPad * 2, stretchWithCard: true);
 
             card.Controls.Add(new Label
             {
@@ -323,57 +346,58 @@ namespace CRMS.winforms.StaffView
                 Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
                 ForeColor = SubtleGray,
                 AutoSize = true,
-                Location = new Point(24, fieldsTop + 62)
+                Location = new Point(CardPad, fieldsTop + 62)
             });
             txtConcern = new RoundedMultilineBox
             {
-                Location = new Point(24, fieldsTop + 80),
-                Size = new Size(width - 48, 72),
+                Location = new Point(CardPad, fieldsTop + 80),
+                Size = new Size(width - CardPad * 2, 72),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 Placeholder = "Describe the issue in the customer's own words..."
             };
             card.Controls.Add(txtConcern);
 
-            card.Height = fieldsTop + 62 + 72 + 20;
+            card.Height = fieldsTop + 80 + 72 + 20;
             return card;
         }
 
         // ----- Repair Parts & Tools -----
         private RoundedPanel BuildServiceCard(int width)
         {
-            var card = NewCard(width);
-            AddSectionHeader(card, "🔧", "Repair Parts & Tools");
+            _serviceCard = NewCard(width);
+            AddSectionHeader(_serviceCard, "\U0001F527", "Repair Parts & Tools");
 
-            int px = 24, py = 62;
-            const int chipHeight = 52;
-
+            // FlowLayoutPanel instead of hand-computed chip positions: the chips
+            // re-wrap themselves when the dialog is maximized or resized, and the
+            // panel reports its own height so the total strip can never be covered.
+            _chipFlow = new FlowLayoutPanel
+            {
+                Location = new Point(CardPad, 62),
+                Width = width - CardPad * 2,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = true,
+                BackColor = Color.Transparent,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                Padding = Padding.Empty,
+                Margin = Padding.Empty
+            };
             foreach (var option in ServiceOptions)
-            {
-                var chip = MakeServiceChip(option.Name, option.Price);
-                if (px + chip.Width > width - 24)
-                {
-                    px = 24;
-                    py += chipHeight + 10;
-                }
-                chip.Location = new Point(px, py);
-                card.Controls.Add(chip);
-                px += chip.Width + 10;
-            }
+                _chipFlow.Controls.Add(MakeServiceChip(option.Name, option.Price));
+            _serviceCard.Controls.Add(_chipFlow);
 
-            py += chipHeight + 16;
-
-            var totalStrip = new RoundedPanel
+            _totalStrip = new RoundedPanel
             {
-                Location = new Point(24, py),
-                Size = new Size(width - 48, 56),
+                Location = new Point(CardPad, _chipFlow.Bottom + 16),
+                Size = new Size(width - CardPad * 2, 56),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 BackColor = FieldFill,
                 CornerRadius = 12
             };
-            totalStrip.Resize += (s, e) => PositionTotalValue(totalStrip);
-            card.Controls.Add(totalStrip);
+            _totalStrip.Resize += (s, e) => PositionTotalValue(_totalStrip);
+            _serviceCard.Controls.Add(_totalStrip);
 
-            totalStrip.Controls.Add(new Label
+            _totalStrip.Controls.Add(new Label
             {
                 Text = "ESTIMATED TOTAL",
                 Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
@@ -389,7 +413,7 @@ namespace CRMS.winforms.StaffView
                 AutoSize = true,
                 Location = new Point(16, 30)
             };
-            totalStrip.Controls.Add(lblSelectedCount);
+            _totalStrip.Controls.Add(lblSelectedCount);
 
             lblTotalValue = new Label
             {
@@ -398,11 +422,22 @@ namespace CRMS.winforms.StaffView
                 ForeColor = Accent,
                 AutoSize = true
             };
-            totalStrip.Controls.Add(lblTotalValue);
-            PositionTotalValue(totalStrip);
+            _totalStrip.Controls.Add(lblTotalValue);
+            PositionTotalValue(_totalStrip);
 
-            card.Height = py + 56 + 20;
-            return card;
+            // When the chips re-wrap to fewer/more rows, push the total strip and
+            // grow the card, then restack the cards below it.
+            _chipFlow.SizeChanged += (s, e) => SyncServiceCardHeight();
+            SyncServiceCardHeight();
+
+            return _serviceCard;
+        }
+
+        private void SyncServiceCardHeight()
+        {
+            _totalStrip.Top = _chipFlow.Bottom + 16;
+            _serviceCard.Height = _totalStrip.Bottom + 20;
+            ReflowCards();
         }
 
         private void PositionTotalValue(RoundedPanel totalStrip)
@@ -415,6 +450,7 @@ namespace CRMS.winforms.StaffView
             var chip = new RoundedButton
             {
                 Height = 52,
+                Margin = new Padding(0, 0, 10, 10),
                 BackColor = FieldFill,
                 HoverColor = Color.FromArgb(240, 241, 245),
                 ForeColor = TitleColor,
@@ -424,7 +460,7 @@ namespace CRMS.winforms.StaffView
             };
             int textWidth = TextRenderer.MeasureText(name, chip.Font).Width;
             int priceWidth = TextRenderer.MeasureText(price.ToString("$0.00"), new Font("Segoe UI", 7.5F)).Width;
-            chip.Width = Math.Max(textWidth, priceWidth) + 36;
+            chip.Width = Math.Max(textWidth, priceWidth) + 48; // +room for the ✓ prefix when selected
             chip.Click += (s, e) => ToggleService(name, chip);
             return chip;
         }
@@ -441,32 +477,46 @@ namespace CRMS.winforms.StaffView
             chip.HoverColor = selected ? AccentSoftBg : Color.FromArgb(240, 241, 245);
             chip.ForeColor = selected ? Accent : TitleColor;
             chip.Font = new Font("Segoe UI", 8F, selected ? FontStyle.Bold : FontStyle.Regular);
-            chip.Text = selected ? $"✓  {name}\n{option.Price:$0.00}" : $"{name}\n{option.Price:$0.00}";
+            chip.Text = selected ? $"\u2713  {name}\n{option.Price:$0.00}" : $"{name}\n{option.Price:$0.00}";
             chip.Invalidate();
 
             decimal total = EstimatedCostValue;
             lblSelectedCount.Text = $"{_selectedServices.Count} item{(_selectedServices.Count == 1 ? "" : "s")} selected";
             lblTotalValue.Text = total.ToString("$0.00");
-            PositionTotalValue((RoundedPanel)lblTotalValue.Parent!);
+            PositionTotalValue(_totalStrip);
         }
 
-        // ----- Terms & Agreement -----
-        private RoundedPanel BuildTermsCard(int width)
+        // ----- Terms & Agreement (fixed above the footer, always on screen) -----
+        private Panel BuildTermsSection()
         {
-            var card = NewCard(width);
-            AddSectionHeader(card, "📄", "Terms & Agreement");
-
-            var termsBox = new RoundedPanel
+            _termsSection = new Panel
             {
-                Location = new Point(24, 62),
-                Size = new Size(width - 48, 110),
+                Dock = DockStyle.Bottom,
+                BackColor = PageBg,
+                Padding = new Padding(16, 12, 4, 8)
+            };
+            _termsSection.Paint += (s, e) =>
+            {
+                using var pen = new Pen(CardBorder, 1);
+                e.Graphics.DrawLine(pen, 0, 0, _termsSection.Width, 0);
+            };
+
+            _termsCard = NewCard(660);
+            _termsCard.Location = new Point(_termsSection.Padding.Left, _termsSection.Padding.Top);
+            AddSectionHeader(_termsCard, "\U0001F4C4", "Terms & Agreement");
+
+            _termsBox = new RoundedPanel
+            {
+                Location = new Point(CardPad, 62),
+                Size = new Size(660 - CardPad * 2, 104),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                AutoScroll = true, // safety net: if the text ever needs more room than fits, it scrolls instead of silently clipping
+                AutoScroll = true, // long terms scroll inside the box instead of clipping
                 BackColor = FieldFill,
                 CornerRadius = 12
             };
-            card.Controls.Add(termsBox);
-            termsBox.Controls.Add(new Label
+            _termsCard.Controls.Add(_termsBox);
+
+            _termsText = new Label
             {
                 Text = "By submitting this service request, the customer agrees to the following terms: " +
                        "the shop will provide a diagnostic assessment within 24-48 hours. Repair estimates " +
@@ -477,21 +527,21 @@ namespace CRMS.winforms.StaffView
                        "charge if done within 24 hours of submission. After this period, a diagnostic fee may " +
                        "apply. Cancellations must be made in writing or via phone.",
                 UseMnemonic = false,
-                Font = new Font("Segoe UI", 7.7F),
+                Font = new Font("Segoe UI", 8F),
                 ForeColor = SubtleGray,
                 Location = new Point(14, 10),
-                Size = new Size(width - 48 - 28, 100),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
-            });
+                AutoSize = true          // height comes from wrapping, not a fixed 100px
+            };
+            _termsBox.Controls.Add(_termsText);
 
             chkAcceptTerms = new CheckBox
             {
                 Text = "Customer has read and accepted the terms",
                 UseMnemonic = false,
-                Font = new Font("Segoe UI", 8.5F),
+                Font = new Font("Segoe UI", 9F),
                 ForeColor = TitleColor,
                 AutoSize = true,
-                Location = new Point(24, 182)
+                Location = new Point(CardPad, _termsBox.Bottom + 12)
             };
             chkAcceptTerms.CheckedChanged += (s, e) =>
             {
@@ -499,24 +549,37 @@ namespace CRMS.winforms.StaffView
                 btnSubmit.BackColor = chkAcceptTerms.Checked ? Accent : DisabledGray;
                 btnSubmit.HoverColor = chkAcceptTerms.Checked ? AccentHover : DisabledGrayHover;
                 btnSubmit.Invalidate();
+                if (chkAcceptTerms.Checked) lblError.Visible = false;
             };
-            card.Controls.Add(chkAcceptTerms);
+            _termsCard.Controls.Add(chkAcceptTerms);
 
             lblError = new Label
             {
                 ForeColor = Color.FromArgb(200, 70, 70),
                 UseMnemonic = false,
-                Font = new Font("Segoe UI", 8F),
+                Font = new Font("Segoe UI", 8.5F),
                 AutoSize = false,
-                Size = new Size(width - 48, 20),
+                Size = new Size(660 - CardPad * 2, 20),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                Location = new Point(24, 204),
+                Location = new Point(CardPad, chkAcceptTerms.Bottom + 6),
                 Visible = false
             };
-            card.Controls.Add(lblError);
+            _termsCard.Controls.Add(lblError);
 
-            card.Height = 204 + 20 + 16;
-            return card;
+            _termsCard.Height = lblError.Bottom + 16;
+            _termsSection.Controls.Add(_termsCard);
+            _termsSection.Height = _termsCard.Height + _termsSection.Padding.Vertical;
+
+            // Keep the card sized to the bar and re-wrap the terms text on resize.
+            _termsSection.Resize += (s, e) =>
+            {
+                int available = _termsSection.ClientSize.Width - _termsSection.Padding.Horizontal;
+                if (available <= 0) return;
+                _termsCard.Width = available;
+                _termsText.MaximumSize = new Size(Math.Max(120, _termsBox.ClientSize.Width - 28), 0);
+            };
+
+            return _termsSection;
         }
 
         private static void MakeRound(Control control)
@@ -549,3 +612,4 @@ namespace CRMS.winforms.StaffView
         }
     }
 }
+

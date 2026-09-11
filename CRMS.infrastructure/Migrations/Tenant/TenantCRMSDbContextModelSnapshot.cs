@@ -197,6 +197,9 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TicketId"));
 
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Concern")
                         .IsRequired()
                         .HasMaxLength(1000)
