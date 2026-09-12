@@ -167,6 +167,10 @@ namespace CRMS.api.Controllers
             return Ok(new LoginResponse(token, user.FullName, roles, user.CompanyId));
         }
 
+        // Sub (the user's id) — this is how the app later figures out which staff member is performing an action (more below).
+        //Role — lets [Authorize]/role checks gate what an account is even allowed to call.
+        //CompanyId — this is the one that makes multi-tenancy automatic. It's only added if the account has one (Superadmin accounts don't belong to a company, so their token simply has no CompanyId claim).
+        //
         private string GenerateJwtToken(ApplicationUser user, IList<string> roles)
         {
             var jwtSection = _config.GetSection("Jwt");

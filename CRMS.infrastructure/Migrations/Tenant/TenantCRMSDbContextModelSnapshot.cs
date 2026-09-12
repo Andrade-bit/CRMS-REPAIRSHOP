@@ -224,6 +224,9 @@ namespace CRMS.infrastructure.Migrations.Tenant
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<DateTime?>("PickedUpAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int?>("StaffId")
                         .HasColumnType("int");
 

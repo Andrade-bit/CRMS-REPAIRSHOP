@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -14,8 +15,29 @@ namespace CRMS.winforms.Shared
         private bool active;
         private bool hover;
         private bool pressed;
+        private bool transparentMode;
         private readonly Label textLabel;
         private const int Inset = 14;
+
+        // Opt-in: when set, this item paints no flat background of its own (so
+        // it can sit on a custom-painted/gradient sidebar) and uses translucent
+        // white overlays for hover/pressed instead of Theme's flat sidebar
+        // tints. Every existing shell (Admin, Manager, Superadmin) leaves this
+        // false and renders exactly as before.
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public bool TransparentMode
+        {
+            get => transparentMode;
+            set
+            {
+                transparentMode = value;
+                if (value)
+                {
+                    SetStyle(ControlStyles.SupportsTransparentBackColor, true);
+                    BackColor = Color.Transparent;
+                }
+            }
+        }
 
         public NavItem(string text)
         {
@@ -31,7 +53,12 @@ namespace CRMS.winforms.Shared
                 TextAlign = ContentAlignment.MiddleLeft,
                 ForeColor = Theme.SidebarText,
                 Font = Theme.FontNav,
-                BackColor = Theme.SidebarBg,
+                // Always transparent, never an opaque fill: the label is docked
+                // to this panel's full (rectangular) bounds, but the active/
+                // hover pill drawn in OnPaint below is rounded — an opaque
+                // label would square off the pill's right-side corners where
+                // their edges coincide.
+                BackColor = Color.Transparent,
                 Cursor = Cursors.Hand
             };
 
@@ -53,8 +80,6 @@ namespace CRMS.winforms.Shared
         private void SetHover(bool value)
         {
             hover = value;
-            Color labelBg = active ? Color.White : Theme.SidebarBg;
-            textLabel.BackColor = labelBg;
             Invalidate();
         }
 
@@ -66,6 +91,11 @@ namespace CRMS.winforms.Shared
 
             Color? pillColor = null;
             if (active) pillColor = Color.White;
+            else if (transparentMode)
+            {
+                if (pressed) pillColor = Color.FromArgb(30, 255, 255, 255);
+                else if (hover) pillColor = Color.FromArgb(18, 255, 255, 255);
+            }
             else if (pressed) pillColor = Theme.SidebarPressed;
             else if (hover) pillColor = Theme.SidebarHover;
 
@@ -87,7 +117,6 @@ namespace CRMS.winforms.Shared
 
             textLabel.ForeColor = active ? Theme.SidebarActiveText : Theme.SidebarText;
             textLabel.Font = active ? Theme.FontNavActive : Theme.FontNav;
-            textLabel.BackColor = active ? Color.White : Theme.SidebarBg;
 
             Invalidate();
         }

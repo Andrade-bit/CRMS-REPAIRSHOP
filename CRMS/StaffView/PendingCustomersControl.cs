@@ -1,9 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using CRMS.winforms.Controllers;
 using CRMS.winforms.Shared;
+using RoundedPanel = CRMS.winforms.RoundedPanel;
+using RoundedRect = CRMS.winforms.RoundedRect;
 
 namespace CRMS.winforms.StaffView
 {
@@ -15,6 +19,21 @@ namespace CRMS.winforms.StaffView
     /// </summary>
     public partial class PendingCustomersControl : UserControl
     {
+        // Staff-only accent, matching StaffMainForm's sidebar/login palette.
+        // Local to this file so it doesn't affect Admin/Manager/Superadmin.
+        private static readonly Color StaffAccent = Color.FromArgb(14, 165, 233);
+        private static readonly Color StaffAccentHover = Color.FromArgb(10, 116, 163);
+        private static readonly Color StaffAccentPressed = Color.FromArgb(8, 99, 140);
+
+        private static readonly Dictionary<string, (Color Bg, Color Fg)> StatusPillColors = new()
+        {
+            [TicketStatus.Diagnose] = (Theme.StatusDiagnoseBg, Theme.StatusDiagnoseText),
+            [TicketStatus.Repairing] = (Theme.StatusRepairingBg, Theme.StatusRepairingText),
+            [TicketStatus.Repaired] = (Theme.StatusRepairedBg, Theme.StatusRepairedText)
+        };
+        private static readonly Font StatusPillFont = new Font("Segoe UI", 8.75F, FontStyle.Bold);
+        private static readonly Color StaffGridLine = Color.FromArgb(183, 228, 248);
+
         private readonly StaffController _controller;
 
         private DataGridView pendingGrid = null!;
@@ -40,21 +59,31 @@ namespace CRMS.winforms.StaffView
                 Width = 168,
                 Height = 38,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Theme.Accent,
+                BackColor = StaffAccent,
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             addButton.FlatAppearance.BorderSize = 0;
-            addButton.FlatAppearance.MouseOverBackColor = Theme.AccentHover;
-            addButton.FlatAppearance.MouseDownBackColor = Theme.AccentPressed;
+            addButton.FlatAppearance.MouseOverBackColor = StaffAccentHover;
+            addButton.FlatAppearance.MouseDownBackColor = StaffAccentPressed;
             Theme.ApplyRoundedRegion(addButton, 8);
             addButton.Click += AddButton_Click;
 
-            var tableCard = Theme.CreateTableCard();
+            var tableCard = new RoundedPanel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+                BorderColor = StaffGridLine,
+                CornerRadius = 12,
+                Padding = new Padding(10)
+            };
 
             pendingGrid = Theme.CreateStyledGrid();
             pendingGrid.RowTemplate.Height = 52;
+            pendingGrid.CellBorderStyle = DataGridViewCellBorderStyle.Single;
+            pendingGrid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+            pendingGrid.GridColor = StaffGridLine;
 
             pendingGrid.Columns.Add("TicketId", "Ticket #");
             pendingGrid.Columns.Add("Customer", "Customer");
@@ -90,6 +119,8 @@ namespace CRMS.winforms.StaffView
                     pendingGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
             };
             pendingGrid.CellValueChanged += PendingGrid_CellValueChanged;
+            pendingGrid.CellPainting += PendingGrid_CellPainting;
+            pendingGrid.EditingControlShowing += PendingGrid_EditingControlShowing;
 
             ShowEmptyState();
 
@@ -185,6 +216,74 @@ namespace CRMS.winforms.StaffView
 
             // "Repaired" ends the transaction — the ticket leaves this table for Customer History.
             await LoadData();
+        }
+
+        /// <summary>Draws the Status column as a colored pill (matching each status's
+        /// meaning) instead of plain combo-box text. Purely cosmetic — the real
+        /// dropdown editor still opens exactly as before when the cell is clicked.</summary>
+        private void PendingGrid_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            if (pendingGrid.Columns[e.ColumnIndex].Name != "Status") return;
+
+            string status = e.Value?.ToString() ?? string.Empty;
+            if (!StatusPillColors.TryGetValue(status, out var colors)) return;
+
+            e.PaintBackground(e.CellBounds, true);
+            e.Graphics!.SmoothingMode = SmoothingMode.AntiAlias;
+
+            var pillRect = Rectangle.Inflate(e.CellBounds, -12, -10);
+            using (var path = RoundedRect.Path(pillRect, pillRect.Height / 2))
+            using (var brush = new SolidBrush(colors.Bg))
+            {
+                e.Graphics.FillPath(brush, path);
+            }
+            TextRenderer.DrawText(e.Graphics, status, StatusPillFont, pillRect, colors.Fg,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+
+            e.Handled = true;
+        }
+
+        /// <summary>Restyles the real dropdown list that opens when a Status cell is
+        /// clicked, so it matches the same colored-pill look instead of the plain
+        /// system list (default font/blue-highlight combo box).</summary>
+        private void PendingGrid_EditingControlShowing(object? sender, DataGridViewEditingControlShowingEventArgs e)
+        {
+            if (pendingGrid.CurrentCell?.OwningColumn?.Name != "Status") return;
+            if (e.Control is not ComboBox combo) return;
+
+            combo.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            combo.FlatStyle = FlatStyle.Flat;
+            combo.DrawMode = DrawMode.OwnerDrawFixed;
+            combo.ItemHeight = 30;
+            combo.DrawItem -= StatusCombo_DrawItem;
+            combo.DrawItem += StatusCombo_DrawItem;
+        }
+
+        private void StatusCombo_DrawItem(object? sender, DrawItemEventArgs e)
+        {
+            if (sender is not ComboBox combo || e.Index < 0) return;
+
+            string status = combo.Items[e.Index]?.ToString() ?? string.Empty;
+            var (bg, fg) = StatusPillColors.TryGetValue(status, out var colors)
+                ? colors
+                : (Color.White, Theme.TextPrimary);
+
+            bool highlighted = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+
+            using (var bgBrush = new SolidBrush(bg))
+            {
+                e.Graphics.FillRectangle(bgBrush, e.Bounds);
+            }
+            if (highlighted)
+            {
+                using var accentPen = new Pen(fg, 3);
+                e.Graphics.DrawLine(accentPen, e.Bounds.Left + 1, e.Bounds.Top + 3, e.Bounds.Left + 1, e.Bounds.Bottom - 3);
+            }
+
+            var textRect = new Rectangle(e.Bounds.X + 16, e.Bounds.Y, e.Bounds.Width - 16, e.Bounds.Height);
+            TextRenderer.DrawText(e.Graphics, status, combo.Font, textRect, fg,
+                TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPrefix);
         }
 
         private async void AddButton_Click(object? sender, EventArgs e)

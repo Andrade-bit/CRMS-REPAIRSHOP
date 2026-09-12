@@ -4,15 +4,25 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using CRMS.winforms.Controllers;
 using CRMS.winforms.Shared;
+using LogoMark = CRMS.winforms.LogoMark;
 
 namespace CRMS.winforms.StaffView
 {
     /// <summary>
-    /// Staff shell: header + sidebar + content, built the same way as
-    /// AdminMainForm so both roles share one consistent look.
+    /// Staff shell: header + sidebar + content. Visually distinct from the
+    /// other roles' shells (a blue brand gradient sidebar matching the logo/
+    /// login palette) via local overrides only — the shared Theme, NavItem and
+    /// AvatarCircle classes all default to their original look, so Admin,
+    /// Manager and Superadmin are unaffected by this file.
     /// </summary>
     public partial class StaffMainForm : Form
     {
+        // Staff-only accent palette (matches the logo and the redesigned login
+        // screen). Kept local to this file rather than in Theme.cs so Admin/
+        // Manager/Superadmin keep their existing look.
+        private static readonly Color StaffAccent = Color.FromArgb(14, 165, 233);
+        private static readonly Color StaffAccentHover = Color.FromArgb(10, 116, 163);
+
         private Panel headerPanel = null!;
         private Panel sidebarPanel = null!;
         private Panel contentPanel = null!;
@@ -56,7 +66,7 @@ namespace CRMS.winforms.StaffView
                 e.Graphics.DrawLine(pen, 0, headerPanel.Height - 1, headerPanel.Width, headerPanel.Height - 1);
             };
 
-            sidebarPanel = new Panel { Dock = DockStyle.Left, Width = 240, BackColor = Theme.SidebarBg };
+            sidebarPanel = new Panel { Dock = DockStyle.Left, Width = 240, BackColor = StaffAccent };
 
             contentPanel = new Panel { Dock = DockStyle.Fill, BackColor = Theme.PageBg };
 
@@ -69,7 +79,7 @@ namespace CRMS.winforms.StaffView
 
         private void SetupHeader()
         {
-            var logoBox = new Panel { Size = new Size(44, 44), Location = new Point(24, 14), BackColor = Theme.Accent };
+            var logoBox = new Panel { Size = new Size(44, 44), Location = new Point(24, 14), BackColor = StaffAccent };
             Theme.ApplyRoundedRegion(logoBox, 10);
             logoBox.Controls.Add(new Label
             {
@@ -81,7 +91,7 @@ namespace CRMS.winforms.StaffView
             });
 
             var profilePanel = new Panel { BackColor = Theme.PageBg, Size = new Size(1, 40) };
-            var avatar = new AvatarCircle(AvatarCircle.GetInitials(staffName)) { Size = new Size(40, 40), Location = new Point(0, 0) };
+            var avatar = new AvatarCircle(AvatarCircle.GetInitials(staffName)) { Size = new Size(40, 40), Location = new Point(0, 0), AccentColor = StaffAccent };
 
             var nameFont = new Font("Segoe UI", 9.5F, FontStyle.Bold);
             var roleFont = new Font("Segoe UI", 8.5F, FontStyle.Regular);
@@ -113,34 +123,56 @@ namespace CRMS.winforms.StaffView
 
         private void SetupSidebar()
         {
-            var brandPanel = new Panel { Dock = DockStyle.Top, Height = 92, BackColor = Theme.SidebarBg };
-            brandPanel.Controls.Add(new Label
+            var brandPanel = new Panel { Dock = DockStyle.Top, Height = 148, BackColor = StaffAccent };
+
+            var logo = new LogoMark
+            {
+                Size = new Size(64, 50),
+                Location = new Point((sidebarPanel.Width - 64) / 2, 16),
+                Anchor = AnchorStyles.Top,
+                AccentColor = StaffAccent,
+                BaseColor = StaffAccentHover,
+                ScreenColor = Color.White
+            };
+            brandPanel.Controls.Add(logo);
+            brandPanel.Resize += (s, e) => logo.Location = new Point((brandPanel.Width - logo.Width) / 2, 16);
+
+            var staffLabel = new Label
             {
                 Text = "STAFF",
                 AutoSize = true,
-                Location = new Point(24, 18),
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-                ForeColor = Theme.SidebarLabel
-            });
-            brandPanel.Controls.Add(new Label
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(196, 230, 250),
+                BackColor = Color.Transparent
+            };
+            var deskLabel = new Label
             {
                 Text = "Repair Desk",
                 AutoSize = true,
-                Location = new Point(24, 38),
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                ForeColor = Color.White
-            });
+                Font = new Font("Segoe UI", 15, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent
+            };
+            brandPanel.Controls.Add(staffLabel);
+            brandPanel.Controls.Add(deskLabel);
+            void CenterBrandLabels()
+            {
+                staffLabel.Location = new Point((brandPanel.Width - staffLabel.PreferredWidth) / 2, 78);
+                deskLabel.Location = new Point((brandPanel.Width - deskLabel.PreferredWidth) / 2, 96);
+            }
+            brandPanel.Resize += (s, e) => CenterBrandLabels();
+            CenterBrandLabels();
 
             var navigationPanel = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = 128,
-                BackColor = Theme.SidebarBg,
+                BackColor = StaffAccent,
                 Padding = new Padding(0, 12, 0, 0)
             };
 
-            navPending = new NavItem("Pending Customers") { Dock = DockStyle.Top, Height = 44 };
-            navHistory = new NavItem("Customer History") { Dock = DockStyle.Top, Height = 44 };
+            navPending = new NavItem("Pending Customers") { Dock = DockStyle.Top, Height = 44, TransparentMode = true };
+            navHistory = new NavItem("Customer History") { Dock = DockStyle.Top, Height = 44, TransparentMode = true };
 
             navPending.Click += (s, e) => NavigatePage("Pending", navPending);
             navHistory.Click += (s, e) => NavigatePage("History", navHistory);
@@ -153,10 +185,10 @@ namespace CRMS.winforms.StaffView
             {
                 Dock = DockStyle.Bottom,
                 Height = 64,
-                BackColor = Theme.SidebarBg,
+                BackColor = StaffAccent,
                 Padding = new Padding(0, 8, 0, 12)
             };
-            navLogout = new NavItem("Logout") { Dock = DockStyle.Fill };
+            navLogout = new NavItem("Logout") { Dock = DockStyle.Fill, TransparentMode = true };
             navLogout.Click += LogoutItem_Click;
             logoutPanel.Controls.Add(navLogout);
 
@@ -169,6 +201,7 @@ namespace CRMS.winforms.StaffView
         {
             pendingControl = new PendingCustomersControl(staffController) { Dock = DockStyle.Fill, Visible = false };
             historyControl = new CustomerHistoryControl { Dock = DockStyle.Fill, Visible = false };
+            historyControl.OnPickupChanged = (ticketId, pickedUp) => staffController.UpdatePickupStatusAsync(ticketId, pickedUp);
 
             contentPanel.Controls.Add(pendingControl);
             contentPanel.Controls.Add(historyControl);

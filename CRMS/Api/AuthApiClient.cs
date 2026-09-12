@@ -71,6 +71,9 @@ namespace CRMS.winforms.Api
         [JsonPropertyName("completedAt")]
         public DateTime? CompletedAt { get; set; }
 
+        [JsonPropertyName("pickedUpAt")]
+        public DateTime? PickedUpAt { get; set; }
+
         [JsonPropertyName("staffName")]
         public string StaffName { get; set; } = string.Empty;
     }
@@ -280,6 +283,31 @@ namespace CRMS.winforms.Api
 
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
             using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/tickets/{ticketId}/status") { Content = content };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _http.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                    return (true, "");
+
+                string body = await response.Content.ReadAsStringAsync();
+                return (false, body);
+            }
+            catch (HttpRequestException)
+            {
+                return (false, "Could not reach the server.");
+            }
+        }
+
+        /// <summary>Calls PUT /api/tickets/{id}/pickup. Returns (true, "") on success, (false, errorMessage) on failure.</summary>
+        public async Task<(bool Success, string Message)> UpdateTicketPickupStatusAsync(string token, int ticketId, bool pickedUp)
+        {
+            var payload = new { pickedUp };
+            string json = JsonSerializer.Serialize(payload);
+
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/tickets/{ticketId}/pickup") { Content = content };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             try

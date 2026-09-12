@@ -75,6 +75,12 @@ namespace CRMS.winforms.Controllers
             return _apiClient.UpdateTicketStatusAsync(Token, ticketId, newStatus);
         }
 
+        /// <summary>Marks whether the customer has claimed their device yet.</summary>
+        public Task<(bool Success, string Message)> UpdatePickupStatusAsync(int ticketId, bool pickedUp)
+        {
+            return _apiClient.UpdateTicketPickupStatusAsync(Token, ticketId, pickedUp);
+        }
+
         private static TicketRecord ToTicketRecord(TicketDto dto) => new()
         {
             TicketId = dto.TicketId,
@@ -87,6 +93,7 @@ namespace CRMS.winforms.Controllers
             Status = dto.Status,
             CreatedAt = dto.CreatedAt,
             CompletedAt = dto.CompletedAt,
+            PickedUpAt = dto.PickedUpAt,
             StaffName = dto.StaffName
         };
     }

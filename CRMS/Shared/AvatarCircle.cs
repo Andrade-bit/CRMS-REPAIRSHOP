@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -9,6 +10,12 @@ namespace CRMS.winforms.Shared
     {
         private readonly string initials;
         private static readonly Font InitialsFont = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+
+        // Defaults to the shared Theme accent so every existing screen (Admin,
+        // Manager, Superadmin) renders exactly as before; only a caller that
+        // explicitly sets this sees a different fill color.
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Color AccentColor { get; set; } = Theme.Accent;
 
         public AvatarCircle(string initials)
         {
@@ -29,7 +36,7 @@ namespace CRMS.winforms.Shared
         {
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-            using (var brush = new SolidBrush(Theme.Accent))
+            using (var brush = new SolidBrush(AccentColor))
             {
                 e.Graphics.FillEllipse(brush, 0, 0, Width - 1, Height - 1);
             }

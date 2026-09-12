@@ -305,6 +305,7 @@ namespace CRMS.Winforms.Admin
             dashboardControl = new DashboardControl { Dock = DockStyle.Fill, Visible = false };
             userManagementControl = new UserManagementControl(adminController) { Dock = DockStyle.Fill, Visible = false };
             customerHistoryControl = new CustomerHistoryControl { Dock = DockStyle.Fill, Visible = false };
+            customerHistoryControl.OnPickupChanged = (ticketId, pickedUp) => adminController.UpdatePickupStatusAsync(ticketId, pickedUp);
             reportsControl = new AnalyticReportControl { Dock = DockStyle.Fill, Visible = false };
 
             settingsContent = new Panel

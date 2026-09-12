@@ -58,6 +58,7 @@ builder.Services.AddAuthentication(options =>
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
+    //This runs before any controller code, on every request. It pulls CompanyId straight out of the already-verified token,
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters

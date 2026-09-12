@@ -32,9 +32,10 @@ namespace CRMS.api.Controllers
         public record TicketResponse(
             int TicketId, string CustomerName, string Phone, string Email,
             string DeviceName, string Concern, decimal EstimatedCost, string Status,
-            DateTime CreatedAt, DateTime? CompletedAt, string StaffName);
+            DateTime CreatedAt, DateTime? CompletedAt, DateTime? PickedUpAt, string StaffName);
 
         public record UpdateStatusRequest(string Status);
+        public record UpdatePickupRequest(bool PickedUp);
 
         [HttpPost]
         public async Task<ActionResult<TicketResponse>> CreateTicket(CreateTicketRequest request)
@@ -72,7 +73,7 @@ namespace CRMS.api.Controllers
             return Ok(new TicketResponse(
                 ticket.TicketId, customer.FullName, customer.PhoneNumber, customer.Email,
                 ticket.DeviceName, ticket.Concern, ticket.EstimatedCost, ticket.Status,
-                ticket.CreatedAt, ticket.CompletedAt, staff.Name));
+                ticket.CreatedAt, ticket.CompletedAt, ticket.PickedUpAt, staff.Name));
         }
 
         /// <summary>status: "pending" (not yet Repaired), "history" (Repaired), or omitted for everything.</summary>
@@ -94,7 +95,7 @@ namespace CRMS.api.Controllers
             var result = tickets.Select(t => new TicketResponse(
                 t.TicketId, t.Customer.FullName, t.Customer.PhoneNumber, t.Customer.Email,
                 t.DeviceName, t.Concern, t.EstimatedCost, t.Status,
-                t.CreatedAt, t.CompletedAt, t.Staff?.Name ?? "")).ToList();
+                t.CreatedAt, t.CompletedAt, t.PickedUpAt, t.Staff?.Name ?? "")).ToList();
 
             return Ok(result);
         }
@@ -117,6 +118,19 @@ namespace CRMS.api.Controllers
 
             // TODO: this is where a real email/SMS send would go, using
             // ticket.Customer.Email / ticket.Customer.PhoneNumber.
+
+            return Ok();
+        }
+
+        [HttpPut("{id}/pickup")]
+        public async Task<IActionResult> UpdatePickup(int id, UpdatePickupRequest request)
+        {
+            var ticket = await _tenantDb.ServiceTickets.FirstOrDefaultAsync(t => t.TicketId == id);
+            if (ticket is null)
+                return NotFound();
+
+            ticket.PickedUpAt = request.PickedUp ? DateTime.UtcNow : null;
+            await _tenantDb.SaveChangesAsync();
 
             return Ok();
         }
