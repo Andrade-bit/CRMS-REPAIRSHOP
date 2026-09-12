@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -38,20 +39,31 @@ namespace CRMS.winforms
             btnSignIn.Text = busy ? "Signing in..." : "Sign In";
         }
 
-        // ----- Colors -----
-        private static readonly Color BgColor = Color.FromArgb(245, 246, 248);
+        // ----- Brand palette (derived from the CRMS logo's blue) -----
+        private static readonly Color Accent = Color.FromArgb(14, 165, 233);      // primary brand blue
+        private static readonly Color AccentHover = Color.FromArgb(10, 116, 163); // deeper blue, hover/pressed
+        private static readonly Color AccentDeep = Color.FromArgb(8, 99, 140);    // darkest blue, gradient end
+        private static readonly Color BrandTextMuted = Color.FromArgb(196, 230, 250); // muted white-on-blue text
+
         private static readonly Color CardColor = Color.White;
         private static readonly Color TitleColor = Color.FromArgb(33, 37, 41);
         private static readonly Color SubtleGray = Color.FromArgb(130, 134, 145);
         private static readonly Color FieldBorder = Color.FromArgb(222, 224, 230);
-        private static readonly Color FieldFill = Color.FromArgb(249, 249, 251);
-        private static readonly Color Accent = Color.FromArgb(37, 99, 235);
-        private static readonly Color AccentHover = Color.FromArgb(29, 78, 216);
+        private static readonly Color FieldFill = Color.FromArgb(247, 250, 253);
+
+        // ----- Layout constants -----
+        private const int BrandWidth = 380;
+        private const int FormWidth = 340;
 
         // ----- Controls -----
-        private Label lblCompanyName;
+        private Panel brandPanel;
+        private Panel formPanel;
+        private LogoMark logoMark;
+        private Label lblBrandTitle;
+        private Label lblBrandTagline;
+
+        private Label lblWelcome;
         private Label lblSubtitle;
-        private RoundedPanel cardPanel;
         private Label lblUsernameCaption;
         private RoundedTextBox txtUsername;
         private Label lblPasswordCaption;
@@ -59,6 +71,7 @@ namespace CRMS.winforms
         private LinkLabel lnkForgotPassword;
         private RoundedButton btnSignIn;
         private Label lblError;
+        private Label lblFooter;
 
         public Login()
         {
@@ -71,65 +84,166 @@ namespace CRMS.winforms
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(400, 520);
-            BackColor = BgColor;
+            ClientSize = new Size(920, 560);
+            BackColor = CardColor;
             Font = new Font("Segoe UI", 9F);
 
-            // --- Company name / subtitle (no logo) ---
-            lblCompanyName = new Label
+            BuildFormPanel();
+            BuildBrandPanel();
+
+            // Fill panel must be added before the Left-docked panel so the brand
+            // panel correctly claims its fixed width and the form panel fills the rest.
+            Controls.Add(formPanel);
+            Controls.Add(brandPanel);
+        }
+
+        private void BuildBrandPanel()
+        {
+            brandPanel = new Panel
             {
-                Text = "Computer Shop Repair",
-                Font = new Font("Segoe UI", 16F, FontStyle.Bold),
-                ForeColor = TitleColor,
+                Dock = DockStyle.Left,
+                Width = BrandWidth,
+                BackColor = Accent
+            };
+            brandPanel.Paint += BrandPanel_Paint;
+
+            logoMark = new LogoMark
+            {
+                Size = new Size(150, 118),
+                Location = new Point((BrandWidth - 150) / 2, 78),
+                AccentColor = Accent,
+                ScreenColor = Color.White
+            };
+            brandPanel.Controls.Add(logoMark);
+
+            lblBrandTitle = new Label
+            {
+                Text = "Computer Repair Shop",
+                Font = new Font("Segoe UI", 18F, FontStyle.Bold),
+                ForeColor = Color.White,
                 AutoSize = true
             };
-            lblCompanyName.Location = new Point((ClientSize.Width - lblCompanyName.PreferredWidth) / 2, 48);
-            Controls.Add(lblCompanyName);
+            lblBrandTitle.Location = new Point((BrandWidth - lblBrandTitle.PreferredWidth) / 2, 214);
+            brandPanel.Controls.Add(lblBrandTitle);
+
+            lblBrandTagline = new Label
+            {
+                Text = "Repair Shop Management System",
+                Font = new Font("Segoe UI", 9.5F),
+                ForeColor = BrandTextMuted,
+                AutoSize = true
+            };
+            lblBrandTagline.Location = new Point((BrandWidth - lblBrandTagline.PreferredWidth) / 2, 250);
+            brandPanel.Controls.Add(lblBrandTagline);
+
+            AddBrandBullet("Real-time ticket tracking", 372);
+            AddBrandBullet("Multi-branch tenant support", 402);
+            AddBrandBullet("Full staff accountability", 432);
+        }
+
+        private void AddBrandBullet(string text, int y)
+        {
+            var dot = new Label
+            {
+                Text = "●",
+                Font = new Font("Segoe UI", 6F),
+                ForeColor = BrandTextMuted,
+                AutoSize = true,
+                Location = new Point(64, y + 3)
+            };
+            var label = new Label
+            {
+                Text = text,
+                Font = new Font("Segoe UI", 9.5F),
+                ForeColor = Color.White,
+                AutoSize = true,
+                Location = new Point(84, y)
+            };
+            brandPanel.Controls.Add(dot);
+            brandPanel.Controls.Add(label);
+        }
+
+        private void BrandPanel_Paint(object sender, PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            using (var gradient = new LinearGradientBrush(
+                brandPanel.ClientRectangle, Accent, AccentDeep, 90f))
+            {
+                g.FillRectangle(gradient, brandPanel.ClientRectangle);
+            }
+
+            // Soft decorative circles for depth, subtle enough to sit behind the text.
+            using (var circleBrush = new SolidBrush(Color.FromArgb(14, 255, 255, 255)))
+            {
+                g.FillEllipse(circleBrush, -110, brandPanel.Height - 260, 320, 320);
+            }
+            using (var circleBrush = new SolidBrush(Color.FromArgb(10, 255, 255, 255)))
+            {
+                g.FillEllipse(circleBrush, brandPanel.Width - 150, -90, 220, 220);
+            }
+        }
+
+        private void BuildFormPanel()
+        {
+            formPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = CardColor
+            };
+
+            int panelWidth = ClientSize.Width - BrandWidth;
+            int formX = (panelWidth - FormWidth) / 2;
+
+            lblWelcome = new Label
+            {
+                Text = "Welcome Back",
+                Font = new Font("Segoe UI", 22F, FontStyle.Bold),
+                ForeColor = TitleColor,
+                AutoSize = true,
+                Location = new Point(formX, 96)
+            };
+            formPanel.Controls.Add(lblWelcome);
 
             lblSubtitle = new Label
             {
-                Text = "Sign in to continue",
-                Font = new Font("Segoe UI", 9F),
+                Text = "Sign in to manage your repair shop",
+                Font = new Font("Segoe UI", 9.5F),
                 ForeColor = SubtleGray,
-                AutoSize = true
+                AutoSize = true,
+                Location = new Point(formX, 134)
             };
-            lblSubtitle.Location = new Point((ClientSize.Width - lblSubtitle.PreferredWidth) / 2, 82);
-            Controls.Add(lblSubtitle);
-
-            // --- Card ---
-            cardPanel = new RoundedPanel
-            {
-                Size = new Size(340, 340),
-                Location = new Point((ClientSize.Width - 340) / 2, 130),
-                BackColor = CardColor,
-                CornerRadius = 14
-            };
-            Controls.Add(cardPanel);
+            formPanel.Controls.Add(lblSubtitle);
 
             // Username
-            lblUsernameCaption = MakeCaption("USERNAME", 24, 28);
-            cardPanel.Controls.Add(lblUsernameCaption);
+            lblUsernameCaption = MakeCaption("USERNAME", formX, 188);
+            formPanel.Controls.Add(lblUsernameCaption);
 
             txtUsername = new RoundedTextBox
             {
-                Location = new Point(24, 48),
-                Size = new Size(cardPanel.Width - 48, 40),
-                Placeholder = "Enter username"
+                Location = new Point(formX, 208),
+                Size = new Size(FormWidth, 42),
+                Placeholder = "Enter username",
+                BackColor = FieldFill,
+                FocusBorderColor = Accent
             };
-            cardPanel.Controls.Add(txtUsername);
+            formPanel.Controls.Add(txtUsername);
 
             // Password
-            lblPasswordCaption = MakeCaption("PASSWORD", 24, 104);
-            cardPanel.Controls.Add(lblPasswordCaption);
+            lblPasswordCaption = MakeCaption("PASSWORD", formX, 266);
+            formPanel.Controls.Add(lblPasswordCaption);
 
             txtPassword = new RoundedTextBox
             {
-                Location = new Point(24, 124),
-                Size = new Size(cardPanel.Width - 48, 40),
+                Location = new Point(formX, 286),
+                Size = new Size(FormWidth, 42),
                 Placeholder = "Enter password",
-                IsPassword = true
+                IsPassword = true,
+                BackColor = FieldFill,
+                FocusBorderColor = Accent
             };
-            cardPanel.Controls.Add(txtPassword);
+            formPanel.Controls.Add(txtPassword);
 
             // Forgot password link
             lnkForgotPassword = new LinkLabel
@@ -141,23 +255,23 @@ namespace CRMS.winforms
                 LinkBehavior = LinkBehavior.HoverUnderline,
                 AutoSize = true
             };
-            lnkForgotPassword.Location = new Point(cardPanel.Width - 24 - lnkForgotPassword.PreferredWidth, 172);
+            lnkForgotPassword.Location = new Point(formX + FormWidth - lnkForgotPassword.PreferredWidth, 336);
             lnkForgotPassword.LinkClicked += (s, e) => ForgotPasswordRequested?.Invoke(this, EventArgs.Empty);
-            cardPanel.Controls.Add(lnkForgotPassword);
+            formPanel.Controls.Add(lnkForgotPassword);
 
             // Sign in button
             btnSignIn = new RoundedButton
             {
                 Text = "Sign In",
-                Location = new Point(24, 206),
-                Size = new Size(cardPanel.Width - 48, 42),
+                Location = new Point(formX, 372),
+                Size = new Size(FormWidth, 46),
                 BackColor = Accent,
                 HoverColor = AccentHover,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+                Font = new Font("Segoe UI", 10.5F, FontStyle.Bold)
             };
             btnSignIn.Click += BtnSignIn_Click;
-            cardPanel.Controls.Add(btnSignIn);
+            formPanel.Controls.Add(btnSignIn);
             AcceptButton = btnSignIn;
 
             // Error label (hidden until ShowError is called)
@@ -166,11 +280,21 @@ namespace CRMS.winforms
                 ForeColor = Color.FromArgb(200, 70, 70),
                 Font = new Font("Segoe UI", 8F),
                 TextAlign = ContentAlignment.MiddleCenter,
-                Size = new Size(cardPanel.Width - 48, 30),
-                Location = new Point(24, 258),
+                Size = new Size(FormWidth, 30),
+                Location = new Point(formX, 426),
                 Visible = false
             };
-            cardPanel.Controls.Add(lblError);
+            formPanel.Controls.Add(lblError);
+
+            lblFooter = new Label
+            {
+                Text = "© 2026 CRMS — Computer Repair Shop Management",
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = SubtleGray,
+                AutoSize = true
+            };
+            lblFooter.Location = new Point((panelWidth - lblFooter.PreferredWidth) / 2, ClientSize.Height - 40);
+            formPanel.Controls.Add(lblFooter);
         }
 
         private Label MakeCaption(string text, int x, int y)
@@ -315,12 +439,19 @@ namespace CRMS.winforms
         private readonly TextBox _inner;
         private string _placeholder = "";
         private bool _showingPlaceholder;
+        private bool _focused;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public int CornerRadius { get; set; } = 10;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool IsPassword { get; set; }
+
+        // Left as Color.Empty (the default) this control's border never changes on
+        // focus, matching every existing dialog that uses it. Only screens that
+        // explicitly opt in (Login) get the highlighted focus ring.
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Color FocusBorderColor { get; set; } = Color.Empty;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string Placeholder
@@ -374,8 +505,11 @@ namespace CRMS.winforms
                 _inner.Text = "";
                 _inner.ForeColor = Color.FromArgb(33, 37, 41);
                 if (IsPassword)
-                    _inner.PasswordChar = '\u25CF';
+                    _inner.PasswordChar = '●';
             }
+
+            _focused = true;
+            Invalidate();
         }
 
         private void Inner_LostFocus(object sender, EventArgs e)
@@ -384,15 +518,23 @@ namespace CRMS.winforms
             {
                 ApplyPlaceholder();
             }
+
+            _focused = false;
+            Invalidate();
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+
+            bool showFocusRing = _focused && FocusBorderColor != Color.Empty;
+            var borderColor = showFocusRing ? FocusBorderColor : Color.FromArgb(222, 224, 230);
+            int borderWidth = showFocusRing ? 2 : 1;
+
             using (var path = RoundedRect.Path(rect, CornerRadius))
             using (var fill = new SolidBrush(BackColor))
-            using (var pen = new Pen(Color.FromArgb(222, 224, 230)))
+            using (var pen = new Pen(borderColor, borderWidth))
             {
                 e.Graphics.FillPath(fill, path);
                 e.Graphics.DrawPath(pen, path);
@@ -428,6 +570,137 @@ namespace CRMS.winforms
             path.AddArc(arc, 90, 90);
             path.CloseFigure();
             return path;
+        }
+    }
+
+    /// <summary>Shared helper for building a gear-shaped GraphicsPath (a ring of teeth around a root circle).</summary>
+    internal static class GearPath
+    {
+        public static GraphicsPath Build(PointF center, float outerRadius, float rootRadius, int teeth)
+        {
+            var points = new List<PointF>(teeth * 4);
+            double anglePerTooth = 360.0 / teeth;
+            double toothAngle = anglePerTooth * 0.5;
+
+            for (int i = 0; i < teeth; i++)
+            {
+                double baseAngle = i * anglePerTooth;
+                points.Add(Polar(center, rootRadius, baseAngle));
+                points.Add(Polar(center, outerRadius, baseAngle + toothAngle * 0.5));
+                points.Add(Polar(center, outerRadius, baseAngle + toothAngle));
+                points.Add(Polar(center, rootRadius, baseAngle + anglePerTooth * 0.5));
+            }
+
+            var path = new GraphicsPath();
+            path.AddPolygon(points.ToArray());
+            return path;
+        }
+
+        private static PointF Polar(PointF center, float radius, double angleDegrees)
+        {
+            double radians = angleDegrees * Math.PI / 180.0;
+            return new PointF(
+                center.X + (float)(radius * Math.Cos(radians)),
+                center.Y + (float)(radius * Math.Sin(radians)));
+        }
+    }
+
+    /// <summary>
+    /// A code-drawn "laptop with gears" brand mark — no external image asset needed.
+    /// Draws a rounded laptop screen/base in <see cref="AccentColor"/> with two
+    /// gears cut out of the <see cref="ScreenColor"/> display area, matching the
+    /// CRMS logo's silhouette.
+    /// </summary>
+    public class LogoMark : Control
+    {
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Color AccentColor { get; set; } = Color.FromArgb(14, 165, 233);
+
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Color ScreenColor { get; set; } = Color.White;
+
+        public LogoMark()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
+            DoubleBuffered = true;
+        }
+
+        protected override void OnPaintBackground(PaintEventArgs pevent)
+        {
+            pevent.Graphics.Clear(Parent?.BackColor ?? BackColor);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            float w = Width;
+            float h = Height;
+
+            // Screen bezel
+            var screenRect = new RectangleF(0, 0, w, h * 0.68f);
+            using (var bezelPath = RoundedRect.Path(Rectangle.Round(screenRect), 16))
+            using (var bezelBrush = new SolidBrush(AccentColor))
+            {
+                g.FillPath(bezelBrush, bezelPath);
+            }
+
+            // Display area
+            var innerRect = new RectangleF(
+                screenRect.X + 9, screenRect.Y + 9,
+                screenRect.Width - 18, screenRect.Height - 18);
+            using (var innerPath = RoundedRect.Path(Rectangle.Round(innerRect), 9))
+            using (var innerBrush = new SolidBrush(ScreenColor))
+            {
+                g.FillPath(innerBrush, innerPath);
+            }
+
+            // Gears inside the display
+            using (var gearBrush = new SolidBrush(AccentColor))
+            {
+                var bigCenter = new PointF(
+                    innerRect.X + innerRect.Width * 0.40f,
+                    innerRect.Y + innerRect.Height * 0.60f);
+                float bigOuter = innerRect.Height * 0.36f;
+                DrawGear(g, gearBrush, bigCenter, bigOuter, bigOuter * 0.72f, 8, 0.40f);
+
+                var smallCenter = new PointF(
+                    innerRect.X + innerRect.Width * 0.74f,
+                    innerRect.Y + innerRect.Height * 0.30f);
+                float smallOuter = innerRect.Height * 0.22f;
+                DrawGear(g, gearBrush, smallCenter, smallOuter, smallOuter * 0.70f, 7, 0.38f);
+            }
+
+            // Laptop base
+            var baseRect = new RectangleF(-w * 0.08f, screenRect.Bottom + 6, w * 1.16f, h * 0.13f);
+            using (var basePath = RoundedRect.Path(Rectangle.Round(baseRect), 6))
+            using (var baseBrush = new SolidBrush(AccentColor))
+            {
+                g.FillPath(baseBrush, basePath);
+            }
+
+            float notchWidth = w * 0.16f;
+            var notchRect = new RectangleF(
+                w / 2 - notchWidth / 2, baseRect.Y + baseRect.Height / 2 - 1.5f, notchWidth, 3f);
+            using (var notchBrush = new SolidBrush(ScreenColor))
+            {
+                g.FillRectangle(notchBrush, notchRect);
+            }
+        }
+
+        private void DrawGear(Graphics g, Brush brush, PointF center, float outerRadius, float rootRadius, int teeth, float holeRadiusRatio)
+        {
+            using (var gearPath = GearPath.Build(center, outerRadius, rootRadius, teeth))
+            {
+                g.FillPath(brush, gearPath);
+            }
+
+            float holeRadius = outerRadius * holeRadiusRatio;
+            using (var holeBrush = new SolidBrush(ScreenColor))
+            {
+                g.FillEllipse(holeBrush, center.X - holeRadius, center.Y - holeRadius, holeRadius * 2, holeRadius * 2);
+            }
         }
     }
 }
