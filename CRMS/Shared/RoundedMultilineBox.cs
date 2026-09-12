@@ -24,6 +24,16 @@ namespace CRMS.winforms.Shared
             set { _placeholder = value; ApplyPlaceholder(); }
         }
 
+        // Defaults to the original 9.5pt so every existing dialog (e.g.
+        // AddTermsVersionDialog) is unaffected; only a caller that explicitly
+        // sets this (Add Customer) gets bigger text.
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public float TextSize
+        {
+            get => _inner.Font.Size;
+            set => _inner.Font = new Font(_inner.Font.FontFamily, value, _inner.Font.Style);
+        }
+
         public string Value => _showingPlaceholder ? string.Empty : _inner.Text;
 
         public RoundedMultilineBox()

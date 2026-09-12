@@ -110,35 +110,42 @@ namespace CRMS.winforms
             logoMark = new LogoMark
             {
                 Size = new Size(150, 118),
-                Location = new Point((BrandWidth - 150) / 2, 78),
                 AccentColor = Accent,
+                BaseColor = AccentHover,
                 ScreenColor = Color.White
             };
+            int y = 68;
+            logoMark.Location = new Point((BrandWidth - logoMark.Width) / 2, y);
             brandPanel.Controls.Add(logoMark);
+            y += logoMark.Height + 30;
 
             lblBrandTitle = new Label
             {
                 Text = "Computer Repair Shop",
                 Font = new Font("Segoe UI", 18F, FontStyle.Bold),
                 ForeColor = Color.White,
+                BackColor = Color.Transparent,
                 AutoSize = true
             };
-            lblBrandTitle.Location = new Point((BrandWidth - lblBrandTitle.PreferredWidth) / 2, 214);
+            lblBrandTitle.Location = new Point((BrandWidth - lblBrandTitle.PreferredWidth) / 2, y);
             brandPanel.Controls.Add(lblBrandTitle);
+            y += lblBrandTitle.Height + 10;
 
             lblBrandTagline = new Label
             {
                 Text = "Repair Shop Management System",
                 Font = new Font("Segoe UI", 9.5F),
                 ForeColor = BrandTextMuted,
+                BackColor = Color.Transparent,
                 AutoSize = true
             };
-            lblBrandTagline.Location = new Point((BrandWidth - lblBrandTagline.PreferredWidth) / 2, 250);
+            lblBrandTagline.Location = new Point((BrandWidth - lblBrandTagline.PreferredWidth) / 2, y);
             brandPanel.Controls.Add(lblBrandTagline);
+            y += lblBrandTagline.Height + 64;
 
-            AddBrandBullet("Real-time ticket tracking", 372);
-            AddBrandBullet("Multi-branch tenant support", 402);
-            AddBrandBullet("Full staff accountability", 432);
+            AddBrandBullet("Real-time ticket tracking", y); y += 34;
+            AddBrandBullet("Multi-branch tenant support", y); y += 34;
+            AddBrandBullet("Full staff accountability", y);
         }
 
         private void AddBrandBullet(string text, int y)
@@ -148,14 +155,16 @@ namespace CRMS.winforms
                 Text = "●",
                 Font = new Font("Segoe UI", 6F),
                 ForeColor = BrandTextMuted,
+                BackColor = Color.Transparent,
                 AutoSize = true,
-                Location = new Point(64, y + 3)
+                Location = new Point(64, y + 4)
             };
             var label = new Label
             {
                 Text = text,
                 Font = new Font("Segoe UI", 9.5F),
                 ForeColor = Color.White,
+                BackColor = Color.Transparent,
                 AutoSize = true,
                 Location = new Point(84, y)
             };
@@ -195,6 +204,7 @@ namespace CRMS.winforms
 
             int panelWidth = ClientSize.Width - BrandWidth;
             int formX = (panelWidth - FormWidth) / 2;
+            int y = 92;
 
             lblWelcome = new Label
             {
@@ -202,9 +212,10 @@ namespace CRMS.winforms
                 Font = new Font("Segoe UI", 22F, FontStyle.Bold),
                 ForeColor = TitleColor,
                 AutoSize = true,
-                Location = new Point(formX, 96)
+                Location = new Point(formX, y)
             };
             formPanel.Controls.Add(lblWelcome);
+            y += lblWelcome.Height + 10;
 
             lblSubtitle = new Label
             {
@@ -212,31 +223,35 @@ namespace CRMS.winforms
                 Font = new Font("Segoe UI", 9.5F),
                 ForeColor = SubtleGray,
                 AutoSize = true,
-                Location = new Point(formX, 134)
+                Location = new Point(formX, y)
             };
             formPanel.Controls.Add(lblSubtitle);
+            y += lblSubtitle.Height + 40;
 
             // Username
-            lblUsernameCaption = MakeCaption("USERNAME", formX, 188);
+            lblUsernameCaption = MakeCaption("USERNAME", formX, y);
             formPanel.Controls.Add(lblUsernameCaption);
+            y += lblUsernameCaption.Height + 8;
 
             txtUsername = new RoundedTextBox
             {
-                Location = new Point(formX, 208),
+                Location = new Point(formX, y),
                 Size = new Size(FormWidth, 42),
                 Placeholder = "Enter username",
                 BackColor = FieldFill,
                 FocusBorderColor = Accent
             };
             formPanel.Controls.Add(txtUsername);
+            y += txtUsername.Height + 28;
 
             // Password
-            lblPasswordCaption = MakeCaption("PASSWORD", formX, 266);
+            lblPasswordCaption = MakeCaption("PASSWORD", formX, y);
             formPanel.Controls.Add(lblPasswordCaption);
+            y += lblPasswordCaption.Height + 8;
 
             txtPassword = new RoundedTextBox
             {
-                Location = new Point(formX, 286),
+                Location = new Point(formX, y),
                 Size = new Size(FormWidth, 42),
                 Placeholder = "Enter password",
                 IsPassword = true,
@@ -244,6 +259,7 @@ namespace CRMS.winforms
                 FocusBorderColor = Accent
             };
             formPanel.Controls.Add(txtPassword);
+            y += txtPassword.Height + 20;
 
             // Forgot password link
             lnkForgotPassword = new LinkLabel
@@ -255,15 +271,16 @@ namespace CRMS.winforms
                 LinkBehavior = LinkBehavior.HoverUnderline,
                 AutoSize = true
             };
-            lnkForgotPassword.Location = new Point(formX + FormWidth - lnkForgotPassword.PreferredWidth, 336);
+            lnkForgotPassword.Location = new Point(formX + FormWidth - lnkForgotPassword.PreferredWidth, y);
             lnkForgotPassword.LinkClicked += (s, e) => ForgotPasswordRequested?.Invoke(this, EventArgs.Empty);
             formPanel.Controls.Add(lnkForgotPassword);
+            y += lnkForgotPassword.Height + 28;
 
             // Sign in button
             btnSignIn = new RoundedButton
             {
                 Text = "Sign In",
-                Location = new Point(formX, 372),
+                Location = new Point(formX, y),
                 Size = new Size(FormWidth, 46),
                 BackColor = Accent,
                 HoverColor = AccentHover,
@@ -273,6 +290,7 @@ namespace CRMS.winforms
             btnSignIn.Click += BtnSignIn_Click;
             formPanel.Controls.Add(btnSignIn);
             AcceptButton = btnSignIn;
+            y += btnSignIn.Height + 16;
 
             // Error label (hidden until ShowError is called)
             lblError = new Label
@@ -281,7 +299,7 @@ namespace CRMS.winforms
                 Font = new Font("Segoe UI", 8F),
                 TextAlign = ContentAlignment.MiddleCenter,
                 Size = new Size(FormWidth, 30),
-                Location = new Point(formX, 426),
+                Location = new Point(formX, y),
                 Visible = false
             };
             formPanel.Controls.Add(lblError);
@@ -301,12 +319,19 @@ namespace CRMS.winforms
         {
             return new Label
             {
-                Text = text,
+                Text = LetterSpaced(text),
                 Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
                 ForeColor = SubtleGray,
                 AutoSize = true,
                 Location = new Point(x, y)
             };
+        }
+
+        /// <summary>Inserts a thin space between characters, giving small all-caps
+        /// labels (USERNAME, PASSWORD) the tracked-out look used in the reference design.</summary>
+        private static string LetterSpaced(string text)
+        {
+            return string.Join(" ", text.ToCharArray());
         }
 
         private void BtnSignIn_Click(object sender, EventArgs e)
@@ -452,6 +477,15 @@ namespace CRMS.winforms
         // explicitly opt in (Login) get the highlighted focus ring.
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Color FocusBorderColor { get; set; } = Color.Empty;
+
+        // Defaults to the original 9.5pt so every existing dialog is unaffected;
+        // only a caller that explicitly sets this (Add Customer) gets bigger text.
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public float TextSize
+        {
+            get => _inner.Font.Size;
+            set => _inner.Font = new Font(_inner.Font.FontFamily, value, _inner.Font.Style);
+        }
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string Placeholder
@@ -616,18 +650,21 @@ namespace CRMS.winforms
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Color AccentColor { get; set; } = Color.FromArgb(14, 165, 233);
 
+        // A visibly darker tone for the base bar so it never blends into whatever
+        // is directly behind it (the bezel above sits on a solid fill, but this
+        // control itself is transparent and lives over a gradient panel).
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Color BaseColor { get; set; } = Color.FromArgb(10, 116, 163);
+
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Color ScreenColor { get; set; } = Color.White;
 
         public LogoMark()
         {
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint
+                | ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
             DoubleBuffered = true;
-        }
-
-        protected override void OnPaintBackground(PaintEventArgs pevent)
-        {
-            pevent.Graphics.Clear(Parent?.BackColor ?? BackColor);
+            BackColor = Color.Transparent;
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -638,12 +675,15 @@ namespace CRMS.winforms
             float w = Width;
             float h = Height;
 
+            using (var outline = new Pen(Color.FromArgb(110, 255, 255, 255), 1.6f))
+            {
             // Screen bezel
             var screenRect = new RectangleF(0, 0, w, h * 0.68f);
             using (var bezelPath = RoundedRect.Path(Rectangle.Round(screenRect), 16))
             using (var bezelBrush = new SolidBrush(AccentColor))
             {
                 g.FillPath(bezelBrush, bezelPath);
+                g.DrawPath(outline, bezelPath);
             }
 
             // Display area
@@ -675,9 +715,10 @@ namespace CRMS.winforms
             // Laptop base
             var baseRect = new RectangleF(-w * 0.08f, screenRect.Bottom + 6, w * 1.16f, h * 0.13f);
             using (var basePath = RoundedRect.Path(Rectangle.Round(baseRect), 6))
-            using (var baseBrush = new SolidBrush(AccentColor))
+            using (var baseBrush = new SolidBrush(BaseColor))
             {
                 g.FillPath(baseBrush, basePath);
+                g.DrawPath(outline, basePath);
             }
 
             float notchWidth = w * 0.16f;
@@ -686,6 +727,7 @@ namespace CRMS.winforms
             using (var notchBrush = new SolidBrush(ScreenColor))
             {
                 g.FillRectangle(notchBrush, notchRect);
+            }
             }
         }
 
