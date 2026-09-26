@@ -1,76 +1,124 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Compile Update="Admin\AdminView.cs">
+    <Compile Update="View\Admin\AddTenantTermsVersionDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="Admin\AnalyticReportControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Update="Admin\DashboardControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Update="Admin\MembershipControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Update="Admin\TermsConditionControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Update="Admin\UserManagementControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Update="Form1.cs">
+    <Compile Update="View\Admin\AdminView.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="Login.cs">
+    <Compile Update="View\Admin\AnalyticReportControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="View\Admin\BranchManagementControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="View\Admin\DashboardControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="View\Admin\KpiDetailDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="Shared\AvatarCircle.cs">
+    <Compile Update="View\Admin\MembershipControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="View\Admin\PromotionsReviewControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="View\Admin\TermsConditionControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="View\Admin\UserManagementControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="View\Form1.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="View\Login.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="View\ManagerView\ManagerDashboardControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="View\ManagerView\ManagerMainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="View\ManagerView\PromotionsComposerControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="View\Shared\AmountInputDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="View\Shared\AvatarCircle.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Update="Shared\ChangePasswordDialog.cs">
+    <Compile Update="View\Shared\BranchEditDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="Shared\CreateAccountDialog.cs">
+    <Compile Update="View\Shared\ChangePasswordDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="Shared\CustomerHistoryControl.cs">
+    <Compile Update="View\Shared\CreateAccountDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="View\Shared\CustomerHistoryControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Shared\NavItem.cs">
+    <Compile Update="View\Shared\FeedbackDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="View\Shared\NavItem.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Update="Shared\RoundedMultilineBox.cs">
+    <Compile Update="View\Shared\RoundedMultilineBox.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="Shared\StatCard.cs">
+    <Compile Update="View\Shared\StatCard.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Update="StaffView\AddCustomerDialog.cs">
+    <Compile Update="View\Shared\SubscriptionEditDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="StaffView\PendingCustomersControl.cs">
+    <Compile Update="View\Shared\SubscriptionPlanPickerDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="View\Shared\SyncStatusIndicator.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="View\StaffView\AddCustomerDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="View\StaffView\EditTicketDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="View\StaffView\PendingCustomersControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="StaffView\StaffMainForm.cs">
+    <Compile Update="View\StaffView\RecordApprovalDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="SuperAdmin\AddTenantDialog.cs">
+    <Compile Update="View\StaffView\StaffMainForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="SuperAdmin\AddTermsVersionDialog.cs">
+    <Compile Update="View\SuperAdmin\AddTermsVersionDialog.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="SuperAdmin\AnalyticsReportControl.cs">
+    <Compile Update="View\SuperAdmin\AnalyticsReportControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="SuperAdmin\SuperAdminMainForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Update="SuperAdmin\TenantsControl.cs">
+    <Compile Update="View\SuperAdmin\SuperadminDashboardControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Update="SuperAdmin\TermsConditionControl.cs">
+    <Compile Update="View\SuperAdmin\SuperAdminMainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="View\SuperAdmin\TenantsControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="View\SuperAdmin\TermsConditionControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="View\SuperAdmin\UserManagementControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
   </ItemGroup>

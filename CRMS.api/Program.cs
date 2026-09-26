@@ -1,3 +1,4 @@
+using CRMS.api.Services;
 using CRMS.domain.Entities;
 using CRMS.infrastructure.Data;
 using CRMS.infrastructure.Services;
@@ -9,12 +10,24 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// EnableRetryOnFailure: MonsterASP's hosted SQL Server occasionally answers
+// slowly (idle wake-up, transient network blips) — without this, one slow
+// handshake throws and crashes the whole request (or, at startup, the app).
 builder.Services.AddDbContext<MasterCRMSDbContext>(options =>
     options.UseSqlServer(
-        builder.Configuration.GetConnectionString("MasterCRMS")));
+        builder.Configuration.GetConnectionString("MasterCRMS"),
+        sql => sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null)));
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ITenantConnectionService, TenantConnectionService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+
+// Local-first cloud sync: a singleton in-memory status board the background
+// worker writes to and the /api/sync/status endpoint reads from, plus the
+// worker itself — runs continuously for the lifetime of the API process.
+builder.Services.AddSingleton<ITenantSyncStatusStore, TenantSyncStatusStore>();
+builder.Services.AddHostedService<TenantSyncBackgroundService>();
 
 // TenantCRMSDbContext: connection string is resolved per-request from the
 // logged-in user's CompanyId claim, via ITenantConnectionService.
@@ -30,7 +43,8 @@ builder.Services.AddDbContext<TenantCRMSDbContext>((serviceProvider, options) =>
             .GetTenantConnectionStringAsync(companyId)
             .GetAwaiter().GetResult();
 
-        options.UseSqlServer(connectionString);
+        options.UseSqlServer(connectionString,
+            sql => sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null));
     }
     else
     {

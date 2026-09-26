@@ -22,6 +22,53 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("CRMS.domain.Entities.Branch", b =>
+                {
+                    b.Property<int>("BranchId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BranchId"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int?>("CloudId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsSynced")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("SyncedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("BranchId");
+
+                    b.ToTable("Branches");
+                });
+
             modelBuilder.Entity("CRMS.domain.Entities.Customer", b =>
                 {
                     b.Property<int>("CustomerId")
@@ -31,6 +78,9 @@ namespace CRMS.infrastructure.Migrations.Tenant
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CustomerId"));
 
                     b.Property<int>("AdminId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CloudId")
                         .HasColumnType("int");
 
                     b.Property<string>("Email")
@@ -43,10 +93,18 @@ namespace CRMS.infrastructure.Migrations.Tenant
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<bool>("IsSynced")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("SyncedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("CustomerId");
 
@@ -61,6 +119,9 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("FeedbackId"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit");
 
@@ -68,6 +129,11 @@ namespace CRMS.infrastructure.Migrations.Tenant
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("Rating")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(5);
 
                     b.Property<int>("TicketId")
                         .HasColumnType("int");
@@ -147,18 +213,57 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PromotionId"));
 
-                    b.Property<int>("AdminId")
+                    b.Property<int?>("CloudId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsSynced")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Message")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<DateTime>("SentDate")
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ReviewedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("ReviewedByAdminId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StaffId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("SyncedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.HasKey("PromotionId");
+
+                    b.HasIndex("StaffId");
 
                     b.ToTable("Promotions");
                 });
@@ -197,6 +302,33 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TicketId"));
 
+                    b.Property<decimal>("AmountPaid")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<DateTime?>("ApprovalDecisionAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ApprovalMethod")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ApprovalStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal?>("ApprovedAmount")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<DateTime?>("ArchivedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CloudId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime2");
 
@@ -216,7 +348,19 @@ namespace CRMS.infrastructure.Migrations.Tenant
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("DiagnosisFindings")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
                     b.Property<decimal>("EstimatedCost")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<bool>("IsSynced")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<decimal?>("OriginalPrice")
                         .HasColumnType("decimal(10,2)");
 
                     b.Property<string>("PaymentStatus")
@@ -227,6 +371,9 @@ namespace CRMS.infrastructure.Migrations.Tenant
                     b.Property<DateTime?>("PickedUpAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("PromotionId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("StaffId")
                         .HasColumnType("int");
 
@@ -235,12 +382,19 @@ namespace CRMS.infrastructure.Migrations.Tenant
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<DateTime?>("SyncedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("TermsAccepted")
                         .HasColumnType("bit");
 
                     b.HasKey("TicketId");
 
+                    b.HasIndex("BranchId");
+
                     b.HasIndex("CustomerId");
+
+                    b.HasIndex("PromotionId");
 
                     b.HasIndex("StaffId");
 
@@ -262,6 +416,17 @@ namespace CRMS.infrastructure.Migrations.Tenant
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CloudId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsSynced")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -272,9 +437,45 @@ namespace CRMS.infrastructure.Migrations.Tenant
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<DateTime?>("SyncedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("StaffId");
 
+                    b.HasIndex("BranchId");
+
                     b.ToTable("Staff");
+                });
+
+            modelBuilder.Entity("CRMS.domain.Entities.TenantTermsVersion", b =>
+                {
+                    b.Property<int>("TermsId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TermsId"));
+
+                    b.Property<int>("AdminId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsCurrent")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.HasKey("TermsId");
+
+                    b.ToTable("TermsVersions");
                 });
 
             modelBuilder.Entity("CRMS.domain.Entities.Feedback", b =>
@@ -310,6 +511,17 @@ namespace CRMS.infrastructure.Migrations.Tenant
                     b.Navigation("Ticket");
                 });
 
+            modelBuilder.Entity("CRMS.domain.Entities.Promotion", b =>
+                {
+                    b.HasOne("CRMS.domain.Entities.Staff", "Staff")
+                        .WithMany()
+                        .HasForeignKey("StaffId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Staff");
+                });
+
             modelBuilder.Entity("CRMS.domain.Entities.RepairPart", b =>
                 {
                     b.HasOne("CRMS.domain.Entities.ServiceTicket", "Ticket")
@@ -323,20 +535,44 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
             modelBuilder.Entity("CRMS.domain.Entities.ServiceTicket", b =>
                 {
+                    b.HasOne("CRMS.domain.Entities.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("CRMS.domain.Entities.Customer", "Customer")
                         .WithMany("ServiceTickets")
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("CRMS.domain.Entities.Promotion", "Promotion")
+                        .WithMany()
+                        .HasForeignKey("PromotionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("CRMS.domain.Entities.Staff", "Staff")
                         .WithMany("ServiceTickets")
                         .HasForeignKey("StaffId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.Navigation("Branch");
+
                     b.Navigation("Customer");
 
+                    b.Navigation("Promotion");
+
                     b.Navigation("Staff");
+                });
+
+            modelBuilder.Entity("CRMS.domain.Entities.Staff", b =>
+                {
+                    b.HasOne("CRMS.domain.Entities.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Branch");
                 });
 
             modelBuilder.Entity("CRMS.domain.Entities.Customer", b =>

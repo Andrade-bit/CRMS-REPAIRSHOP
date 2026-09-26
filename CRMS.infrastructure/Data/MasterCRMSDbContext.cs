@@ -113,6 +113,9 @@ namespace CRMS.infrastructure.Data
                 entity.Property(x => x.ShopName).HasMaxLength(200).IsRequired();
                 entity.Property(x => x.Address).HasMaxLength(300);
                 entity.Property(x => x.SubscriptionStatus).HasMaxLength(50);
+                entity.Property(x => x.BillingCycle).HasMaxLength(20);
+                entity.Property(x => x.SubscriptionAmount).HasColumnType("decimal(10,2)");
+                entity.Property(x => x.SubscriptionPlan).HasMaxLength(20);
 
                 entity.HasOne(x => x.ApplicationUser)
                     .WithMany()

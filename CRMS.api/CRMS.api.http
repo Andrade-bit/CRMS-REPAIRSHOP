@@ -79,3 +79,8 @@ Content-Type: application/json
 }
 
 ###
+
+  POST http://localhost:5029/api/auth/register-temp
+Content-Type: application/json
+
+{"username": "superadmin1", "password": "superadmin1", "fullName": "Andrade Andrade Mina", "role": "Superadmin"}

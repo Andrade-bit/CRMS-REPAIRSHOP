@@ -1,0 +1,191 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+
+namespace CRMS.winforms.Controllers
+{
+    /// <summary>One named table inside a multi-section report export (e.g. "Top
+    /// Customers" with its own columns/rows) — <see cref="PdfExportService.ExportReport"/>
+    /// renders each of these as its own titled table, in order.</summary>
+    public record PdfReportSection(string Title, string[] Columns, IReadOnlyList<string[]> Rows);
+
+    /// <summary>One tile in a report's Summary block (e.g. "Revenue" / "₱604,335").</summary>
+    public record PdfSummaryStat(string Label, string Value);
+
+    /// <summary>Generates PDF exports: a one-page receipt for a single service
+    /// ticket, a single-table export of exactly what a report page's table shows
+    /// on screen, or a combined multi-section report with a summary up front.</summary>
+    public static class PdfExportService
+    {
+        static PdfExportService()
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+        }
+
+        /// <summary>Builds the receipt and writes it to <paramref name="filePath"/>.</summary>
+        public static void ExportTicketHistory(TicketRecord ticket, string filePath)
+        {
+            Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A5);
+                    page.Margin(1.5f, Unit.Centimetre);
+                    page.DefaultTextStyle(x => x.FontSize(10));
+
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Text("Computer Repair Shop").FontSize(18).Bold();
+                        col.Item().Text("Service Ticket Receipt").FontSize(11).FontColor(Colors.Grey.Darken1);
+                        col.Item().PaddingTop(6).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                    });
+
+                    page.Content().PaddingTop(12).Column(col =>
+                    {
+                        col.Spacing(6);
+
+                        col.Item().Text($"Ticket #: {ticket.TicketId}").Bold();
+                        col.Item().Text($"Customer: {ticket.FullName}");
+                        col.Item().Text($"Phone: {ticket.PhoneNumber}");
+                        col.Item().Text($"Email: {ticket.Email}");
+
+                        col.Item().PaddingTop(8).LineHorizontal(1).LineColor(Colors.Grey.Lighten3);
+
+                        col.Item().PaddingTop(8).Text($"Device: {ticket.DeviceName}");
+                        col.Item().Text($"Concern: {ticket.Concern}");
+                        col.Item().Text($"Status: {ticket.Status}");
+                        col.Item().Text($"Date Received: {ticket.CreatedAt:MMM d, yyyy h:mm tt}");
+                        col.Item().Text($"Date Completed: {ticket.CompletedAt?.ToString("MMM d, yyyy h:mm tt") ?? "-"}");
+
+                        col.Item().PaddingTop(8).LineHorizontal(1).LineColor(Colors.Grey.Lighten3);
+
+                        col.Item().PaddingTop(8).Text($"Handled By: {(string.IsNullOrWhiteSpace(ticket.StaffName) ? "-" : ticket.StaffName)}").Bold();
+
+                        col.Item().PaddingTop(8).LineHorizontal(1).LineColor(Colors.Grey.Lighten3);
+
+                        col.Item().PaddingTop(8).Text($"Estimated Cost: {ticket.EstimatedCost:₱#,##0.00}").Bold().FontSize(13);
+                    });
+
+                    page.Footer().AlignCenter().Text(
+                        $"Generated {DateTime.Now:MMM d, yyyy h:mm tt}").FontSize(8).FontColor(Colors.Grey.Medium);
+                });
+            }).GeneratePdf(filePath);
+        }
+
+        /// <summary>Exports a single table exactly as it reads on screen (same
+        /// title/columns/rows a report page or Customer History is currently
+        /// showing, filters and all — pagination doesn't count, since a table
+        /// paged for on-screen browsing shouldn't mean a truncated PDF).</summary>
+        public static void ExportTable(string title, string subtitle, string[] columns, IReadOnlyList<string[]> rows, string filePath)
+        {
+            ExportReport(title, subtitle, Array.Empty<PdfSummaryStat>(),
+                new[] { new PdfReportSection(title, columns, rows) }, filePath, includeSectionTitle: false);
+        }
+
+        /// <summary>Exports a combined report: an optional Summary block of key
+        /// figures, followed by one titled table per section, in order. Used for
+        /// Admin's "Export Full Report" (every report section plus a summary)
+        /// and for pages that show more than one table at once (Common Repairs'
+        /// Devices + Concerns tables).</summary>
+        public static void ExportReport(
+            string title, string subtitle, IReadOnlyList<PdfSummaryStat> summary,
+            IReadOnlyList<PdfReportSection> sections, string filePath, bool includeSectionTitle = true)
+        {
+            Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(1.5f, Unit.Centimetre);
+                    page.DefaultTextStyle(x => x.FontSize(9));
+
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Text("CRMS — Computer Repair Shop Management").FontSize(9).FontColor(Colors.Grey.Darken1);
+                        col.Item().Text(title).FontSize(18).Bold();
+                        col.Item().Text(subtitle).FontSize(10).FontColor(Colors.Grey.Darken1);
+                        col.Item().PaddingTop(6).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                    });
+
+                    page.Content().PaddingTop(12).Column(col =>
+                    {
+                        col.Spacing(16);
+
+                        if (summary.Count > 0)
+                        {
+                            col.Item().Column(summaryCol =>
+                            {
+                                summaryCol.Item().Text("SUMMARY").FontSize(9).Bold().FontColor(Colors.Grey.Darken2);
+                                summaryCol.Item().PaddingTop(6).Row(row =>
+                                {
+                                    foreach (var stat in summary)
+                                    {
+                                        row.RelativeItem().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(8).Column(k =>
+                                        {
+                                            k.Item().Text(stat.Label.ToUpperInvariant()).FontSize(7).Bold().FontColor(Colors.Grey.Medium);
+                                            k.Item().PaddingTop(2).Text(stat.Value).FontSize(13).Bold();
+                                        });
+                                    }
+                                });
+                            });
+                        }
+
+                        foreach (var section in sections)
+                        {
+                            col.Item().Column(sectionCol =>
+                            {
+                                if (includeSectionTitle)
+                                    sectionCol.Item().PaddingBottom(4).Text(section.Title).FontSize(12).Bold();
+
+                                sectionCol.Item().Table(table =>
+                                {
+                                    table.ColumnsDefinition(cols =>
+                                    {
+                                        foreach (var _ in section.Columns) cols.RelativeColumn();
+                                    });
+
+                                    table.Header(header =>
+                                    {
+                                        foreach (var c in section.Columns)
+                                            header.Cell().Background(Colors.Grey.Lighten3).Padding(5).Text(c).Bold().FontSize(8.5f);
+                                    });
+
+                                    bool alt = false;
+                                    foreach (var row in section.Rows)
+                                    {
+                                        var bg = alt ? Colors.Grey.Lighten5 : Colors.White;
+                                        foreach (var cell in row)
+                                            table.Cell().Background(bg).Padding(5).Text(cell ?? "").FontSize(8.5f);
+                                        alt = !alt;
+                                    }
+
+                                    if (section.Rows.Count == 0)
+                                    {
+                                        foreach (var _ in section.Columns)
+                                            table.Cell().Background(Colors.White).Padding(5).Text("");
+                                    }
+                                });
+                            });
+                        }
+                    });
+
+                    page.Footer().Row(row =>
+                    {
+                        row.RelativeItem().Text($"Generated {DateTime.Now:MMM d, yyyy h:mm tt}").FontSize(8).FontColor(Colors.Grey.Medium);
+                        row.RelativeItem().AlignRight().Text(x =>
+                        {
+                            x.DefaultTextStyle(s => s.FontSize(8).FontColor(Colors.Grey.Medium));
+                            x.CurrentPageNumber();
+                            x.Span(" / ");
+                            x.TotalPages();
+                        });
+                    });
+                });
+            }).GeneratePdf(filePath);
+        }
+    }
+}
