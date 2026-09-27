@@ -17,8 +17,9 @@ namespace CRMS.api.Controllers
     // ModuleAccessController for what each one actually unlocks.
     public record SetSubscriptionPlanRequest(string Plan);
 
-    public record TermsVersionEntry(int TermsId, string Version, string Content, DateTime CreatedAt, bool IsCurrent);
-    public record PublishTermsRequest(string Version, string Content);
+    public record TermsVersionEntry(int TermsId, string Version, string Content, DateTime CreatedAt, bool IsCurrent, string PlanScope);
+    public record PublishTermsRequest(string Version, string Content, string PlanScope);
+    public record UpdateTermsScopeRequest(string PlanScope);
 
     public record SuperadminAdminAccountEntry(int CompanyId, string CompanyName, string Username, string FullName, string Status);
     public record SuperadminResetPasswordRequest(string NewPassword);

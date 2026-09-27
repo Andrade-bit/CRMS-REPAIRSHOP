@@ -2,6 +2,8 @@ using CRMS.infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace CRMS.api.Controllers
 {
@@ -43,6 +45,10 @@ namespace CRMS.api.Controllers
                 .Where(t => t.ArchivedAt == null)
                 .AsQueryable();
 
+            int? branchFilter = await GetCallerBranchFilterAsync();
+            if (branchFilter.HasValue)
+                query = query.Where(t => t.BranchId == branchFilter.Value);
+
             if (string.Equals(status, "pending", StringComparison.OrdinalIgnoreCase))
                 query = query.Where(t => !TerminalStatuses.Contains(t.Status));
             else if (string.Equals(status, "history", StringComparison.OrdinalIgnoreCase))
@@ -66,6 +72,74 @@ namespace CRMS.api.Controllers
             }).ToList();
 
             return Ok(result);
+        }
+
+        /// <summary>A single ticket by number, for the header's "Find ticket #"
+        /// search — a customer calling in asking about their ticket shouldn't
+        /// need Staff to page through the full history to answer.</summary>
+        [HttpGet("{id}/lookup")]
+        public async Task<ActionResult<TicketLookupResponse>> LookupTicket(int id)
+        {
+            var query = _tenantDb.ServiceTickets
+                .Include(t => t.Customer)
+                .Where(t => t.ArchivedAt == null)
+                .AsQueryable();
+
+            int? branchFilter = await GetCallerBranchFilterAsync();
+            if (branchFilter.HasValue)
+                query = query.Where(t => t.BranchId == branchFilter.Value);
+
+            var ticket = await query
+                .Select(t => new TicketLookupResponse(t.TicketId, t.Customer.FullName, t.DeviceName, t.Status, t.CreatedAt))
+                .FirstOrDefaultAsync(t => t.TicketId == id);
+
+            if (ticket is null) return NotFound();
+            return Ok(ticket);
+        }
+
+        /// <summary>Counts for the small "today" strip on Pending Customers —
+        /// scoped the same way GetTickets is, so the numbers shown always match
+        /// what that Staff/Manager can actually see in the list below them.</summary>
+        [HttpGet("today-summary")]
+        public async Task<ActionResult<TodaySummaryResponse>> GetTodaySummary()
+        {
+            var today = DateTime.UtcNow.Date;
+            int? branchFilter = await GetCallerBranchFilterAsync();
+
+            var query = _tenantDb.ServiceTickets.Where(t => t.ArchivedAt == null).AsQueryable();
+            if (branchFilter.HasValue)
+                query = query.Where(t => t.BranchId == branchFilter.Value);
+
+            int ticketsToday = await query
+                .CountAsync(t => t.CreatedAt >= today && t.CreatedAt < today.AddDays(1));
+
+            int awaitingPickup = await query
+                .CountAsync(t => TerminalStatuses.Contains(t.Status) && t.PickedUpAt == null);
+
+            int needsApproval = await query
+                .CountAsync(t => t.ApprovalStatus == "Pending");
+
+            return Ok(new TodaySummaryResponse(ticketsToday, awaitingPickup, needsApproval));
+        }
+
+        /// <summary>Returns the caller's own BranchId to filter tickets by — but
+        /// only when that's actually meaningful: the caller is a branch-assigned
+        /// Staff or Manager. Admin, Superadmin, and any Staff/Manager not
+        /// assigned to a specific branch all get null (no filter, see
+        /// everything), matching how BranchId already works everywhere else —
+        /// unassigned means "not scoped to one branch", not "scoped to none".</summary>
+        private async Task<int?> GetCallerBranchFilterAsync()
+        {
+            if (!User.IsInRole("Staff") && !User.IsInRole("Manager"))
+                return null;
+
+            string? userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return null;
+
+            var staff = await _tenantDb.Staff.FirstOrDefaultAsync(s => s.ApplicationUserId == userId);
+            return staff?.BranchId;
         }
 
         [HttpPut("{id}/pickup")]

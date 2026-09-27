@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,6 +19,24 @@
 
   <ItemGroup>
     <PackageReference Include="QuestPDF" Version="2026.8.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Icons\edit.png">
+      <LogicalName>CRMS.winforms.Icons.edit.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Icons\archive.png">
+      <LogicalName>CRMS.winforms.Icons.archive.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Icons\approve.png">
+      <LogicalName>CRMS.winforms.Icons.approve.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Icons\lock.png">
+      <LogicalName>CRMS.winforms.Icons.lock.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\logo.png">
+      <LogicalName>CRMS.winforms.Icons.logo.png</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>  

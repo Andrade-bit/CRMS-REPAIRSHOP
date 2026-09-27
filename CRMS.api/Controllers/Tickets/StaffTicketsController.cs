@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using static CRMS.api.ContactValidation;
 
 namespace CRMS.api.Controllers
 {
@@ -27,6 +28,27 @@ namespace CRMS.api.Controllers
         {
             _tenantDb = tenantDb;
             _emailService = emailService;
+        }
+
+        /// <summary>The logged-in Staff's own branch, if any — feeds the small
+        /// branch pill in the header. Null/null when this account isn't
+        /// assigned to a specific branch (most tenants).</summary>
+        [HttpGet("~/api/staff/me")]
+        public async Task<ActionResult<StaffProfileResponse>> GetMyProfile()
+        {
+            var staff = await FindCurrentStaffAsync();
+            if (staff is null)
+                return Ok(new StaffProfileResponse(null, null));
+
+            if (staff.BranchId is null)
+                return Ok(new StaffProfileResponse(null, null));
+
+            string? branchName = await _tenantDb.Branches
+                .Where(b => b.BranchId == staff.BranchId)
+                .Select(b => b.Name)
+                .FirstOrDefaultAsync();
+
+            return Ok(new StaffProfileResponse(staff.BranchId, branchName));
         }
 
         /// <summary>Searches this tenant's customers by name/phone/email, so Staff can
@@ -52,6 +74,18 @@ namespace CRMS.api.Controllers
         [HttpPost]
         public async Task<ActionResult<TicketResponse>> CreateTicket(CreateTicketRequest request)
         {
+            if (request.EstimatedCost <= 0)
+                return BadRequest("Estimated cost must be greater than zero.");
+
+            if (!request.ExistingCustomerId.HasValue)
+            {
+                if (!IsValidNameIfPresent(request.FirstName) || !IsValidNameIfPresent(request.MiddleName) || !IsValidNameIfPresent(request.LastName))
+                    return BadRequest("Names can only contain letters — no numbers or symbols.");
+
+                if (!IsValidPhoneIfPresent(request.Phone))
+                    return BadRequest("Phone number can only contain digits — no letters.");
+            }
+
             var staff = await FindCurrentStaffAsync();
             if (staff is null)
                 return BadRequest("No Staff record found in this tenant for the logged-in account.");
@@ -212,7 +246,13 @@ namespace CRMS.api.Controllers
             if (request.Decision is not ("Pending" or "Approved" or "Rejected"))
                 return BadRequest($"\"{request.Decision}\" is not a recognized approval decision.");
 
-            var ticket = await _tenantDb.ServiceTickets.FirstOrDefaultAsync(t => t.TicketId == id);
+            if (request.EstimatedCost <= 0)
+                return BadRequest("Estimated cost must be greater than zero.");
+
+            if (request.Decision == "Approved" && request.ApprovedAmount is <= 0)
+                return BadRequest("Approved amount must be greater than zero.");
+
+            var ticket = await _tenantDb.ServiceTickets.Include(t => t.Customer).FirstOrDefaultAsync(t => t.TicketId == id);
             if (ticket is null)
                 return NotFound();
 
@@ -245,7 +285,33 @@ namespace CRMS.api.Controllers
 
             await _tenantDb.SaveChangesAsync();
 
+            await _emailService.SendAsync(ticket.Customer.Email, ticket.Customer.FullName,
+                $"Update on your {ticket.DeviceName}", BuildApprovalMessage(ticket, request.Decision));
+
             return Ok();
+        }
+
+        private static string BuildApprovalMessage(ServiceTicket ticket, string decision)
+        {
+            string body = decision switch
+            {
+                "Pending" =>
+                    $"we've diagnosed your {ticket.DeviceName}.\n\n" +
+                    $"Findings: {ticket.DiagnosisFindings}\n" +
+                    $"Estimated cost: ₱{ticket.EstimatedCost:0.00}\n\n" +
+                    "Please let us know if you'd like to go ahead with the repair.",
+                "Approved" =>
+                    $"thanks for approving the repair on your {ticket.DeviceName}.\n\n" +
+                    $"Approved amount: ₱{ticket.ApprovedAmount:0.00}\n\n" +
+                    "We're starting work on it now.",
+                "Rejected" =>
+                    $"we've noted your decision not to proceed with the repair on your {ticket.DeviceName}. " +
+                    "The ticket has been cancelled — no charge will apply.",
+                _ => $"your {ticket.DeviceName}'s status has been updated."
+            };
+
+            return $"Hi {ticket.Customer.FullName},\n\n{char.ToUpperInvariant(body[0])}{body[1..]}\n\n" +
+                   $"Ticket #{ticket.TicketId}\n\n— CRMS Repair Shop";
         }
 
         /// <summary>Fixes a mistake in the customer's name/phone/email, or the
@@ -253,6 +319,15 @@ namespace CRMS.api.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTicketDetails(int id, UpdateTicketDetailsRequest request)
         {
+            if (request.EstimatedCost <= 0)
+                return BadRequest("Estimated cost must be greater than zero.");
+
+            if (!IsValidNameIfPresent(request.FullName))
+                return BadRequest("Name can only contain letters — no numbers or symbols.");
+
+            if (!IsValidPhoneIfPresent(request.Phone))
+                return BadRequest("Phone number can only contain digits — no letters.");
+
             var ticket = await _tenantDb.ServiceTickets
                 .Include(t => t.Customer)
                 .Include(t => t.RepairParts)

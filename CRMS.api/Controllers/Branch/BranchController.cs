@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using static CRMS.api.ContactValidation;
 
 namespace CRMS.api.Controllers
 {
@@ -43,7 +44,7 @@ namespace CRMS.api.Controllers
             List<Branch> branches;
             try
             {
-                branches = await _tenantDb.Branches.OrderBy(b => b.Name).ToListAsync();
+                branches = await _tenantDb.Branches.Where(b => b.ArchivedAt == null).OrderBy(b => b.Name).ToListAsync();
             }
             catch (SqlException)
             {
@@ -61,6 +62,12 @@ namespace CRMS.api.Controllers
         {
             if (string.IsNullOrWhiteSpace(request.Name))
                 return BadRequest("Branch name is required.");
+
+            if (!IsValidPhoneIfPresent(request.Phone))
+                return BadRequest("Phone number can only contain digits — no letters.");
+
+            if (await _tenantDb.Branches.AnyAsync(b => b.ArchivedAt == null && b.Name.ToLower() == request.Name.Trim().ToLower()))
+                return BadRequest("A branch with that name already exists.");
 
             var branch = new Branch
             {
@@ -81,6 +88,12 @@ namespace CRMS.api.Controllers
             if (string.IsNullOrWhiteSpace(request.Name))
                 return BadRequest("Branch name is required.");
 
+            if (!IsValidPhoneIfPresent(request.Phone))
+                return BadRequest("Phone number can only contain digits — no letters.");
+
+            if (await _tenantDb.Branches.AnyAsync(b => b.BranchId != id && b.ArchivedAt == null && b.Name.ToLower() == request.Name.Trim().ToLower()))
+                return BadRequest("A branch with that name already exists.");
+
             var branch = await _tenantDb.Branches.FirstOrDefaultAsync(b => b.BranchId == id);
             if (branch is null) return NotFound("No branch found with that id.");
 
@@ -91,6 +104,21 @@ namespace CRMS.api.Controllers
             await _tenantDb.SaveChangesAsync();
 
             return Ok(ToResponse(branch));
+        }
+
+        /// <summary>Hides a branch from Branch Management and from the branch
+        /// picker on new Staff/Manager accounts. Never a real delete — Staff and
+        /// tickets already tied to this branch keep that BranchId.</summary>
+        [HttpPut("{id}/archive")]
+        public async Task<IActionResult> ArchiveBranch(int id)
+        {
+            var branch = await _tenantDb.Branches.FirstOrDefaultAsync(b => b.BranchId == id);
+            if (branch is null) return NotFound("No branch found with that id.");
+
+            branch.ArchivedAt = DateTime.UtcNow;
+            await _tenantDb.SaveChangesAsync();
+
+            return Ok();
         }
 
         private static BranchResponse ToResponse(Branch branch) =>

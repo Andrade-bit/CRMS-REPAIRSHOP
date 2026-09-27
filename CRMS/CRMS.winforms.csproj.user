@@ -85,6 +85,9 @@
     <Compile Update="View\Shared\SyncStatusIndicator.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Update="View\Shared\TicketLookupDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="View\StaffView\AddCustomerDialog.cs">
       <SubType>Form</SubType>
     </Compile>

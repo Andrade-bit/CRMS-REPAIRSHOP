@@ -10,6 +10,12 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// launchSettings.json (the previous source of this) only applies under
+// `dotnet run`/Visual Studio — a published exe has no launchSettings, so the
+// port has to be pinned here or the WinForms client's hardcoded
+// http://localhost:5029 would have nothing listening on it.
+builder.WebHost.UseUrls("http://localhost:5029");
+
 // EnableRetryOnFailure: MonsterASP's hosted SQL Server occasionally answers
 // slowly (idle wake-up, transient network blips) — without this, one slow
 // handshake throws and crashes the whole request (or, at startup, the app).
@@ -114,8 +120,9 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-app.UseHttpsRedirection();
-
+// No HTTPS binding is configured (see UseUrls above) — this API only ever
+// talks to the WinForms client on the same machine over http://localhost,
+// so there's nothing here for a redirect to upgrade to.
 app.UseAuthentication(); // must come before UseAuthorization
 app.UseAuthorization();
 

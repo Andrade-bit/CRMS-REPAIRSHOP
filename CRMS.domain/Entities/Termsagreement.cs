@@ -14,8 +14,14 @@ namespace CRMS.domain.Entities
         public string Content { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // Exactly one version is ever current at a time — publishing a new one
-        // flips this off on whichever version held it before.
+        // "All" (the default/fallback), or one specific plan this version's
+        // terms apply to: "Starter", "Growth", "AllAccess" — same plan names
+        // Admin.SubscriptionPlan uses.
+        public string PlanScope { get; set; } = "All";
+
+        // Exactly one version is ever current PER PlanScope — publishing a
+        // new "Growth" version only flips this off on the previous current
+        // "Growth" version, leaving Starter/AllAccess/All untouched.
         public bool IsCurrent { get; set; }
     }
 }

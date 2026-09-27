@@ -30,6 +30,8 @@ namespace CRMS.winforms.ManagerView
         private readonly ManagerController managerController;
         private readonly string managerName;
 
+        private Label branchPill = null!;
+
         public ManagerMainForm(string managerName = "Manager Name", string token = "", int? companyId = null)
         {
             this.managerName = managerName;
@@ -38,6 +40,20 @@ namespace CRMS.winforms.ManagerView
             SetupContentPanels();
             NavigatePage("Dashboard");
             _ = CheckModuleAccessAsync();
+            _ = InitBranchPillAsync();
+        }
+
+        /// <summary>Shows the branch pill only if this logged-in Manager account is
+        /// actually assigned to a branch — most tenants aren't using branches at
+        /// all, so the pill just stays hidden for them.</summary>
+        private async Task InitBranchPillAsync()
+        {
+            var profile = await managerController.GetMyProfileAsync();
+            if (string.IsNullOrWhiteSpace(profile.BranchName)) return;
+
+            branchPill.Text = $"\U0001F3E2 {profile.BranchName}";
+            branchPill.Visible = true;
+            Theme.ApplyRoundedRegion(branchPill, branchPill.Height / 2);
         }
 
         /// <summary>Hides Promotions if this tenant's subscription plan
@@ -56,22 +72,25 @@ namespace CRMS.winforms.ManagerView
             Size = new Size(1200, 800);
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(1024, 700);
+            Icon = IconResources.AppIcon;
 
             layout = new ModernCrmsLayout(CrmsRole.Manager, managerName);
             layout.PageRequested += (s, e) => NavigatePage(e.PageKey);
             layout.LogoutRequested += LogoutItem_Click;
 
-            var syncIndicator = new SyncStatusIndicator(managerController.GetSyncStatusAsync);
-            layout.Header.Controls.Add(syncIndicator);
-
-            void RepositionSync()
+            branchPill = new Label
             {
-                syncIndicator.Location = new Point(
-                    layout.Header.Width - ModernCrmsLayout.ProfileWidth - layout.Header.Padding.Right - syncIndicator.Width - 24,
-                    (layout.Header.Height - syncIndicator.Height) / 2);
-            }
-            layout.Header.Resize += (s, e) => RepositionSync();
-            RepositionSync();
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                BackColor = Color.FromArgb(230, 241, 251),
+                ForeColor = Color.FromArgb(24, 95, 165),
+                AutoSize = true,
+                Padding = new Padding(10, 5, 10, 5),
+                Visible = false
+            };
+            layout.AddHeaderExtra(branchPill);
+
+            var syncIndicator = new SyncStatusIndicator(managerController.GetSyncStatusAsync);
+            layout.AddHeaderExtra(syncIndicator);
 
             Controls.Add(layout);
 
@@ -81,11 +100,11 @@ namespace CRMS.winforms.ManagerView
         private void SetupContentPanels()
         {
             dashboardControl = new ManagerDashboardControl(managerController) { Dock = DockStyle.Fill, Visible = false };
-            dashboardControl.PendingRequested += (s, e) => NavigatePage("Pending");
+            dashboardControl.PromotionsRequested += (s, e) => NavigatePage("Promotions");
 
             pendingControl = new PendingCustomersControl(managerController) { Dock = DockStyle.Fill, Visible = false };
 
-            historyControl = new CustomerHistoryControl(allowArchive: true) { Dock = DockStyle.Fill, Visible = false };
+            historyControl = new CustomerHistoryControl(allowArchive: true, generatedByName: managerName, generatedByRole: "Manager") { Dock = DockStyle.Fill, Visible = false };
             historyControl.OnPickupChanged = (ticketId, pickedUp) => managerController.UpdatePickupStatusAsync(ticketId, pickedUp);
             historyControl.OnFeedbackSubmitted = (ticketId, rating, message) => managerController.SubmitFeedbackAsync(ticketId, rating, message);
             historyControl.OnPaymentChanged = (ticketId, paymentStatus, amountPaid) => managerController.UpdatePaymentStatusAsync(ticketId, paymentStatus, amountPaid);

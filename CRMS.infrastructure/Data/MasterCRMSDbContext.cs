@@ -136,6 +136,7 @@ namespace CRMS.infrastructure.Data
 
                 entity.Property(x => x.Version).HasMaxLength(50).IsRequired();
                 entity.Property(x => x.Content).HasMaxLength(4000);
+                entity.Property(x => x.PlanScope).HasMaxLength(20).IsRequired();
 
                 entity.HasOne(x => x.Superadmin)
                     .WithMany(x => x.TermsAgreements)

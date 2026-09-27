@@ -58,7 +58,7 @@ namespace CRMS.winforms
         // ----- Controls -----
         private Panel brandPanel;
         private Panel formPanel;
-        private LogoMark logoMark;
+        private PictureBox logoMark;
         private Label lblBrandTitle;
         private Label lblBrandTagline;
 
@@ -85,6 +85,7 @@ namespace CRMS.winforms
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(920, 560);
+            Icon = Shared.IconResources.AppIcon;
             BackColor = CardColor;
             Font = new Font("Segoe UI", 9F);
 
@@ -107,12 +108,12 @@ namespace CRMS.winforms
             };
             brandPanel.Paint += BrandPanel_Paint;
 
-            logoMark = new LogoMark
+            logoMark = new PictureBox
             {
-                Size = new Size(150, 118),
-                AccentColor = Accent,
-                BaseColor = AccentHover,
-                ScreenColor = Color.White
+                Image = Shared.IconResources.Get("logo"),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Size = new Size(150, 125),
+                BackColor = Color.Transparent
             };
             int y = 68;
             logoMark.Location = new Point((BrandWidth - logoMark.Width) / 2, y);
@@ -459,6 +460,17 @@ namespace CRMS.winforms
     /// which avoids the handle-recreation crash that can happen when
     /// UseSystemPasswordChar is flipped on an already-focused TextBox.
     /// </summary>
+    /// <summary>What RoundedTextBox blocks as the user types. Any = no
+    /// restriction (default). Letters = a person's name — letters, spaces,
+    /// apostrophes, hyphens, periods; blocks digits. Phone = a phone number —
+    /// digits, spaces, hyphens, parentheses, plus; blocks letters.</summary>
+    public enum TextInputMode
+    {
+        Any,
+        Letters,
+        Phone
+    }
+
     public class RoundedTextBox : UserControl
     {
         private readonly TextBox _inner;
@@ -472,6 +484,13 @@ namespace CRMS.winforms
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool IsPassword { get; set; }
+
+        // Blocks disallowed keystrokes as the user types — Letters for a
+        // person's name (blocks digits), Phone for a phone number (blocks
+        // letters). Defaults to Any so every existing dialog is unaffected
+        // unless it opts in.
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public TextInputMode InputMode { get; set; } = TextInputMode.Any;
 
         // Left as Color.Empty (the default) this control's border never changes on
         // focus, matching every existing dialog that uses it. Only screens that
@@ -513,6 +532,12 @@ namespace CRMS.winforms
         /// existing caller is affected by adding this.</summary>
         public event EventHandler? ValueChanged;
 
+        /// <summary>Forwards the inner TextBox's KeyDown — named to avoid shadowing
+        /// Control's own KeyDown (which never fires here, since focus always goes
+        /// to the inner TextBox, not this UserControl). Opt-in, e.g. to submit a
+        /// search on Enter.</summary>
+        public event KeyEventHandler? ValueKeyDown;
+
         public RoundedTextBox()
         {
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
@@ -527,7 +552,24 @@ namespace CRMS.winforms
             _inner.GotFocus += Inner_GotFocus;
             _inner.LostFocus += Inner_LostFocus;
             _inner.TextChanged += (s, e) => { if (!_suppressValueChanged) ValueChanged?.Invoke(this, EventArgs.Empty); };
+            _inner.KeyDown += (s, e) => ValueKeyDown?.Invoke(this, e);
+            _inner.KeyPress += Inner_KeyPress;
             Controls.Add(_inner);
+        }
+
+        private void Inner_KeyPress(object? sender, KeyPressEventArgs e)
+        {
+            if (InputMode == TextInputMode.Any) return;
+            if (char.IsControl(e.KeyChar)) return; // backspace, etc. always allowed
+
+            bool allowed = InputMode switch
+            {
+                TextInputMode.Letters => char.IsLetter(e.KeyChar) || e.KeyChar is ' ' or '\'' or '-' or '.',
+                TextInputMode.Phone => char.IsDigit(e.KeyChar) || e.KeyChar is ' ' or '-' or '+' or '(' or ')',
+                _ => true
+            };
+
+            if (!allowed) e.Handled = true;
         }
 
         protected override void OnResize(EventArgs e)
@@ -637,142 +679,4 @@ namespace CRMS.winforms
         }
     }
 
-    /// <summary>Shared helper for building a gear-shaped GraphicsPath (a ring of teeth around a root circle).</summary>
-    internal static class GearPath
-    {
-        public static GraphicsPath Build(PointF center, float outerRadius, float rootRadius, int teeth)
-        {
-            var points = new List<PointF>(teeth * 4);
-            double anglePerTooth = 360.0 / teeth;
-            double toothAngle = anglePerTooth * 0.5;
-
-            for (int i = 0; i < teeth; i++)
-            {
-                double baseAngle = i * anglePerTooth;
-                points.Add(Polar(center, rootRadius, baseAngle));
-                points.Add(Polar(center, outerRadius, baseAngle + toothAngle * 0.5));
-                points.Add(Polar(center, outerRadius, baseAngle + toothAngle));
-                points.Add(Polar(center, rootRadius, baseAngle + anglePerTooth * 0.5));
-            }
-
-            var path = new GraphicsPath();
-            path.AddPolygon(points.ToArray());
-            return path;
-        }
-
-        private static PointF Polar(PointF center, float radius, double angleDegrees)
-        {
-            double radians = angleDegrees * Math.PI / 180.0;
-            return new PointF(
-                center.X + (float)(radius * Math.Cos(radians)),
-                center.Y + (float)(radius * Math.Sin(radians)));
-        }
-    }
-
-    /// <summary>
-    /// A code-drawn "laptop with gears" brand mark — no external image asset needed.
-    /// Draws a rounded laptop screen/base in <see cref="AccentColor"/> with two
-    /// gears cut out of the <see cref="ScreenColor"/> display area, matching the
-    /// CRMS logo's silhouette.
-    /// </summary>
-    public class LogoMark : Control
-    {
-        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-        public Color AccentColor { get; set; } = Color.FromArgb(14, 165, 233);
-
-        // A visibly darker tone for the base bar so it never blends into whatever
-        // is directly behind it (the bezel above sits on a solid fill, but this
-        // control itself is transparent and lives over a gradient panel).
-        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-        public Color BaseColor { get; set; } = Color.FromArgb(10, 116, 163);
-
-        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-        public Color ScreenColor { get; set; } = Color.White;
-
-        public LogoMark()
-        {
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint
-                | ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
-            DoubleBuffered = true;
-            BackColor = Color.Transparent;
-        }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            var g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-
-            float w = Width;
-            float h = Height;
-
-            using (var outline = new Pen(Color.FromArgb(110, 255, 255, 255), 1.6f))
-            {
-            // Screen bezel
-            var screenRect = new RectangleF(0, 0, w, h * 0.68f);
-            using (var bezelPath = RoundedRect.Path(Rectangle.Round(screenRect), 16))
-            using (var bezelBrush = new SolidBrush(AccentColor))
-            {
-                g.FillPath(bezelBrush, bezelPath);
-                g.DrawPath(outline, bezelPath);
-            }
-
-            // Display area
-            var innerRect = new RectangleF(
-                screenRect.X + 9, screenRect.Y + 9,
-                screenRect.Width - 18, screenRect.Height - 18);
-            using (var innerPath = RoundedRect.Path(Rectangle.Round(innerRect), 9))
-            using (var innerBrush = new SolidBrush(ScreenColor))
-            {
-                g.FillPath(innerBrush, innerPath);
-            }
-
-            // Gears inside the display
-            using (var gearBrush = new SolidBrush(AccentColor))
-            {
-                var bigCenter = new PointF(
-                    innerRect.X + innerRect.Width * 0.40f,
-                    innerRect.Y + innerRect.Height * 0.60f);
-                float bigOuter = innerRect.Height * 0.36f;
-                DrawGear(g, gearBrush, bigCenter, bigOuter, bigOuter * 0.72f, 8, 0.40f);
-
-                var smallCenter = new PointF(
-                    innerRect.X + innerRect.Width * 0.74f,
-                    innerRect.Y + innerRect.Height * 0.30f);
-                float smallOuter = innerRect.Height * 0.22f;
-                DrawGear(g, gearBrush, smallCenter, smallOuter, smallOuter * 0.70f, 7, 0.38f);
-            }
-
-            // Laptop base
-            var baseRect = new RectangleF(-w * 0.08f, screenRect.Bottom + 6, w * 1.16f, h * 0.13f);
-            using (var basePath = RoundedRect.Path(Rectangle.Round(baseRect), 6))
-            using (var baseBrush = new SolidBrush(BaseColor))
-            {
-                g.FillPath(baseBrush, basePath);
-                g.DrawPath(outline, basePath);
-            }
-
-            float notchWidth = w * 0.16f;
-            var notchRect = new RectangleF(
-                w / 2 - notchWidth / 2, baseRect.Y + baseRect.Height / 2 - 1.5f, notchWidth, 3f);
-            using (var notchBrush = new SolidBrush(ScreenColor))
-            {
-                g.FillRectangle(notchBrush, notchRect);
-            }
-            }
-        }
-
-        private void DrawGear(Graphics g, Brush brush, PointF center, float outerRadius, float rootRadius, int teeth, float holeRadiusRatio)
-        {
-            using (var gearPath = GearPath.Build(center, outerRadius, rootRadius, teeth))
-            {
-                g.FillPath(brush, gearPath);
-            }
-
-            float holeRadius = outerRadius * holeRadiusRatio;
-            using (var holeBrush = new SolidBrush(ScreenColor))
-            {
-                g.FillEllipse(holeBrush, center.X - holeRadius, center.Y - holeRadius, holeRadius * 2, holeRadius * 2);
-            }
-        }
-    }
 }

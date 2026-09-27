@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using static CRMS.api.ContactValidation;
 
 namespace CRMS.api.Controllers
 {
@@ -73,6 +74,12 @@ namespace CRMS.api.Controllers
         {
             if (!CreatableRoles.Contains(request.Role))
                 return BadRequest($"An Admin can only create Staff or Manager accounts, not \"{request.Role}\".");
+
+            if (string.IsNullOrWhiteSpace(request.FullName))
+                return BadRequest("Full name is required.");
+
+            if (!IsValidNameIfPresent(request.FullName))
+                return BadRequest("Name can only contain letters — no numbers or symbols.");
 
             int companyId = GetCallerCompanyId();
 

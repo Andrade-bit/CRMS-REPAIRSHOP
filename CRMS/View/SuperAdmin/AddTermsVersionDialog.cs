@@ -16,12 +16,24 @@ namespace CRMS.winforms.SuperAdmin
         private readonly HashSet<string> _existingVersions;
 
         private RoundedTextBox txtVersion = null!;
+        private ComboBox cmbPlanScope = null!;
         private RoundedMultilineBox txtContent = null!;
         private Label lblError = null!;
         private RoundedButton btnPublish = null!;
 
         public string VersionValue => txtVersion.Value.Trim();
         public string ContentValue => txtContent.Value.Trim();
+
+        /// <summary>"All" or one of the three plan names — which plan this
+        /// version applies to. "All" is a fallback used wherever no
+        /// plan-specific current version exists for that plan.</summary>
+        public string PlanScopeValue => cmbPlanScope.SelectedItem?.ToString() switch
+        {
+            "Starter" => "Starter",
+            "Growth" => "Growth",
+            "AllAccess" => "AllAccess",
+            _ => "All"
+        };
 
         /// <param name="existingVersions">Every version label already published —
         /// checked so a new one can't collide with one already in use.</param>
@@ -38,7 +50,7 @@ namespace CRMS.winforms.SuperAdmin
             MaximizeBox = false;
             MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(520, 520);
+            ClientSize = new Size(520, 580);
             BackColor = Theme.PageBg;
             Font = new Font("Segoe UI", 9F);
 
@@ -70,15 +82,34 @@ namespace CRMS.winforms.SuperAdmin
 
             Controls.Add(new Label
             {
+                Text = "APPLIES TO",
+                Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
+                ForeColor = Theme.TextSecondary,
+                AutoSize = true,
+                Location = new Point(24, 122)
+            });
+            cmbPlanScope = new ComboBox
+            {
+                Location = new Point(24, 140),
+                Size = new Size(ClientSize.Width - 48, 36),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9.5F)
+            };
+            cmbPlanScope.Items.AddRange(new object[] { "All plans", "Starter", "Growth", "AllAccess" });
+            cmbPlanScope.SelectedIndex = 0;
+            Controls.Add(cmbPlanScope);
+
+            Controls.Add(new Label
+            {
                 Text = "CONTENT",
                 Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
                 ForeColor = Theme.TextSecondary,
                 AutoSize = true,
-                Location = new Point(24, 126)
+                Location = new Point(24, 186)
             });
             txtContent = new RoundedMultilineBox
             {
-                Location = new Point(24, 144),
+                Location = new Point(24, 204),
                 Size = new Size(ClientSize.Width - 48, 280),
                 Placeholder = "Full terms & conditions text shown to customers..."
             };
@@ -90,7 +121,7 @@ namespace CRMS.winforms.SuperAdmin
                 Font = new Font("Segoe UI", 8.5F),
                 AutoSize = false,
                 Size = new Size(ClientSize.Width - 48, 24),
-                Location = new Point(24, 432),
+                Location = new Point(24, 492),
                 Visible = false
             };
             Controls.Add(lblError);
@@ -98,7 +129,7 @@ namespace CRMS.winforms.SuperAdmin
             btnPublish = new RoundedButton
             {
                 Text = "Publish Version",
-                Location = new Point(24, 460),
+                Location = new Point(24, 520),
                 Size = new Size(ClientSize.Width - 48, 42),
                 BackColor = Theme.Accent,
                 HoverColor = Theme.AccentHover,

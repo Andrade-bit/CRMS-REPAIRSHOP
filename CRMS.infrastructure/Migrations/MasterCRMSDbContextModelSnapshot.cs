@@ -301,6 +301,11 @@ namespace CRMS.infrastructure.Migrations
                     b.Property<bool>("IsCurrent")
                         .HasColumnType("bit");
 
+                    b.Property<string>("PlanScope")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<int>("SuperadminId")
                         .HasColumnType("int");
 

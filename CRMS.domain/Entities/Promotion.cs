@@ -41,6 +41,10 @@ namespace CRMS.domain.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ReviewedAt { get; set; }
 
+        // Never a real delete — hides it from Admin's review list without
+        // losing the record (same pattern as Branch/ServiceTicket archiving).
+        public DateTime? ArchivedAt { get; set; }
+
         // ----- Local-first cloud sync ----- (see Staff.cs for the full explanation)
         public bool IsSynced { get; set; } = false;
         public DateTime? SyncedAt { get; set; }

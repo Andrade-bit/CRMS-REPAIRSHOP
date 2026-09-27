@@ -86,9 +86,9 @@ namespace CRMS.winforms.Shared
             AddCaption("FIRST NAME", 24, y);
             AddCaption("MIDDLE NAME", 24 + triWidth + gap, y);
             AddCaption("LAST NAME", 24 + (triWidth + gap) * 2, y);
-            txtFirstName = AddTextBox("e.g. Juan", 24, y + 18, triWidth);
-            txtMiddleName = AddTextBox("e.g. Reyes", 24 + triWidth + gap, y + 18, triWidth);
-            txtLastName = AddTextBox("e.g. Dela Cruz", 24 + (triWidth + gap) * 2, y + 18, lastTriWidth);
+            txtFirstName = AddTextBox("e.g. Juan", 24, y + 18, triWidth, inputMode: TextInputMode.Letters);
+            txtMiddleName = AddTextBox("e.g. Reyes", 24 + triWidth + gap, y + 18, triWidth, inputMode: TextInputMode.Letters);
+            txtLastName = AddTextBox("e.g. Dela Cruz", 24 + (triWidth + gap) * 2, y + 18, lastTriWidth, inputMode: TextInputMode.Letters);
             y += 66;
 
             AddCaption("USERNAME", 24, y);
@@ -173,18 +173,21 @@ namespace CRMS.winforms.Shared
             });
         }
 
-        private RoundedTextBox AddTextBox(string placeholder, int x, int y, int width, bool isPassword = false)
+        private RoundedTextBox AddTextBox(string placeholder, int x, int y, int width, bool isPassword = false, TextInputMode inputMode = TextInputMode.Any)
         {
             var box = new RoundedTextBox
             {
                 Location = new Point(x, y),
                 Size = new Size(width, 36),
                 Placeholder = placeholder,
-                IsPassword = isPassword
+                IsPassword = isPassword,
+                InputMode = inputMode
             };
             Controls.Add(box);
             return box;
         }
+
+        private static readonly System.Text.RegularExpressions.Regex NamePattern = new(@"^[A-Za-z][A-Za-z\s'.-]*$");
 
         private void BtnCreate_Click(object? sender, EventArgs e)
         {
@@ -194,6 +197,14 @@ namespace CRMS.winforms.Shared
                 string.IsNullOrWhiteSpace(PasswordValue))
             {
                 lblError.Text = "Please fill in first name, last name, username, and password.";
+                lblError.Visible = true;
+                return;
+            }
+
+            if (!NamePattern.IsMatch(FirstNameValue) || !NamePattern.IsMatch(LastNameValue) ||
+                (MiddleNameValue.Length > 0 && !NamePattern.IsMatch(MiddleNameValue)))
+            {
+                lblError.Text = "Names can only contain letters — no numbers or symbols.";
                 lblError.Visible = true;
                 return;
             }

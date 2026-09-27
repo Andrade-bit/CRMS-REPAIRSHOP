@@ -60,10 +60,12 @@ namespace CRMS.api.Controllers
         {
             var entry = await _tenantDb.Feedbacks
                 .Include(f => f.Ticket).ThenInclude(t => t.Customer)
+                .Include(f => f.Ticket).ThenInclude(t => t.Staff)
                 .Where(f => f.TicketId == id)
                 .Select(f => new FeedbackEntry(
                     f.FeedbackId, f.TicketId, f.Ticket.Customer.FullName, f.Ticket.DeviceName,
-                    f.Rating, f.Message, f.CreatedAt))
+                    f.Rating, f.Message, f.CreatedAt,
+                    f.Ticket.Staff != null ? f.Ticket.Staff.Name : "-", f.Ticket.CreatedAt))
                 .FirstOrDefaultAsync();
 
             return Ok(entry);
@@ -75,10 +77,12 @@ namespace CRMS.api.Controllers
         {
             var entries = await _tenantDb.Feedbacks
                 .Include(f => f.Ticket).ThenInclude(t => t.Customer)
+                .Include(f => f.Ticket).ThenInclude(t => t.Staff)
                 .OrderByDescending(f => f.CreatedAt)
                 .Select(f => new FeedbackEntry(
                     f.FeedbackId, f.TicketId, f.Ticket.Customer.FullName, f.Ticket.DeviceName,
-                    f.Rating, f.Message, f.CreatedAt))
+                    f.Rating, f.Message, f.CreatedAt,
+                    f.Ticket.Staff != null ? f.Ticket.Staff.Name : "-", f.Ticket.CreatedAt))
                 .ToListAsync();
 
             return Ok(entries);

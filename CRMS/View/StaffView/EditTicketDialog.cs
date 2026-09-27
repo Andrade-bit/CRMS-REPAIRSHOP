@@ -320,7 +320,7 @@ namespace CRMS.winforms.StaffView
         }
 
         private void AddLabeledField(RoundedPanel card, out RoundedTextBox box, string caption, string initialValue,
-            int x, int y, int width, bool stretchWithCard = false)
+            int x, int y, int width, bool stretchWithCard = false, TextInputMode inputMode = TextInputMode.Any)
         {
             card.Controls.Add(new Label
             {
@@ -335,7 +335,8 @@ namespace CRMS.winforms.StaffView
                 Location = new Point(x, y + FieldCaptionGap),
                 Size = new Size(width, FieldBoxHeight),
                 TextSize = InputFontSize,
-                Value = initialValue
+                Value = initialValue,
+                InputMode = inputMode
             };
             if (stretchWithCard)
                 box.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
@@ -349,11 +350,11 @@ namespace CRMS.winforms.StaffView
             AddSectionHeader(card, "\U0001F464", "Customer Information");
 
             int fieldsTop = SectionHeaderHeight;
-            AddLabeledField(card, out txtFullName, "FULL NAME", fullName, CardPad, fieldsTop, width - CardPad * 2, stretchWithCard: true);
+            AddLabeledField(card, out txtFullName, "FULL NAME", fullName, CardPad, fieldsTop, width - CardPad * 2, stretchWithCard: true, inputMode: TextInputMode.Letters);
 
             int gap = 16;
             int halfWidth = (width - CardPad * 2 - gap) / 2;
-            AddLabeledField(card, out txtPhone, "PHONE NUMBER", phone, CardPad, fieldsTop + FieldBlockHeight, halfWidth);
+            AddLabeledField(card, out txtPhone, "PHONE NUMBER", phone, CardPad, fieldsTop + FieldBlockHeight, halfWidth, inputMode: TextInputMode.Phone);
             AddLabeledField(card, out txtEmail, "EMAIL ADDRESS", email, CardPad + halfWidth + gap, fieldsTop + FieldBlockHeight, halfWidth, stretchWithCard: true);
 
             card.Height = fieldsTop + FieldBlockHeight + FieldCaptionGap + FieldBoxHeight + 20;
@@ -620,6 +621,10 @@ namespace CRMS.winforms.StaffView
             txtEstimatedCost.Value = total.ToString("0.00", CultureInfo.InvariantCulture);
         }
 
+        private static readonly System.Text.RegularExpressions.Regex NamePattern = new(@"^[A-Za-z][A-Za-z\s'.-]*$");
+        private static readonly System.Text.RegularExpressions.Regex PhonePattern = new(@"^[0-9][0-9\s\-+()]*$");
+        private static readonly System.Text.RegularExpressions.Regex EmailPattern = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+
         private void BtnSave_Click(object? sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(FullNameValue) || string.IsNullOrWhiteSpace(PhoneValue) ||
@@ -629,9 +634,27 @@ namespace CRMS.winforms.StaffView
                 return;
             }
 
-            if (!decimal.TryParse(txtEstimatedCost.Value.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out var cost) || cost < 0)
+            if (!NamePattern.IsMatch(FullNameValue))
             {
-                ShowError("Enter a valid, non-negative estimated cost.");
+                ShowError("The customer's name can only contain letters — no numbers or symbols.");
+                return;
+            }
+
+            if (!PhonePattern.IsMatch(PhoneValue))
+            {
+                ShowError("Phone number can only contain digits — no letters.");
+                return;
+            }
+
+            if (EmailValue.Length > 0 && !EmailPattern.IsMatch(EmailValue))
+            {
+                ShowError("Enter a valid email address, e.g. customer@email.com.");
+                return;
+            }
+
+            if (!decimal.TryParse(txtEstimatedCost.Value.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out var cost) || cost <= 0)
+            {
+                ShowError("Enter an estimated cost greater than ₱0.");
                 return;
             }
 

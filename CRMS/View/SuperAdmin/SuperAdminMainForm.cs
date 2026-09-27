@@ -44,6 +44,7 @@ namespace CRMS.winforms.SuperAdmin
             Size = new Size(1480, 940);
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(1100, 650);
+            Icon = IconResources.AppIcon;
 
             layout = new ModernCrmsLayout(CrmsRole.Superadmin, superAdminName);
             layout.PageRequested += (s, e) => NavigatePage(e.PageKey);

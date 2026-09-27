@@ -52,10 +52,32 @@ namespace CRMS.winforms.Shared
             ApplyLabelBounds();
         }
 
+        private static readonly float[] ValueFontSizes = { 22F, 19F, 16F, 14F };
+
         private void ApplyLabelBounds()
         {
             int maxWidth = Math.Max(60, Width - Padding.Left - Padding.Right);
+
+            // The value (e.g. "₱134,216.60") must never wrap — a wrapped
+            // second line pushes the title label down past this card's fixed
+            // height, overlapping whatever sits below it. Shrink the font to
+            // the largest size that still fits on one line instead; only if
+            // even the smallest size doesn't fit does it fall back to wrapping,
+            // which is still better than clipping off the card's edge.
+            Font fitFont = valueLabel.Font;
+            foreach (float size in ValueFontSizes)
+            {
+                var candidate = new Font("Segoe UI", size, FontStyle.Bold);
+                if (TextRenderer.MeasureText(valueLabel.Text, candidate).Width <= maxWidth)
+                {
+                    fitFont = candidate;
+                    break;
+                }
+                fitFont = candidate;
+            }
+            valueLabel.Font = fitFont;
             valueLabel.MaximumSize = new Size(maxWidth, 0);
+
             titleLabel.MaximumSize = new Size(maxWidth, 0);
             titleLabel.Location = new Point(titleLabel.Left, valueLabel.Bottom + 6);
         }

@@ -22,7 +22,6 @@ namespace CRMS.winforms.ManagerView
     {
         private static readonly Color ManagerAccent = Color.FromArgb(10, 116, 163);
         private static readonly Color ManagerAccentHover = Color.FromArgb(8, 99, 140);
-        private static readonly Color GridLine = Color.FromArgb(183, 228, 248);
         private static readonly Color FieldFill = Color.FromArgb(249, 249, 251);
         private static readonly Color CardBorder = Color.FromArgb(232, 234, 238);
         private static readonly Color TitleColor = Color.FromArgb(33, 37, 41);
@@ -43,9 +42,15 @@ namespace CRMS.winforms.ManagerView
         private ComboBox cboType = null!;
         private RoundedMultilineBox txtMessage = null!;
         private RoundedMultilineBox txtReason = null!;
+        private static readonly Color RowHoverColor = Color.FromArgb(240, 249, 255);
+        private static readonly Color RowAlternateColor = Color.FromArgb(249, 250, 251);
+        private static readonly Color RowSelectedColor = Color.FromArgb(234, 244, 251);
+        private static readonly Color TableBorder = Color.FromArgb(209, 213, 219);
+
         private DataGridView promotionsGrid = null!;
         private Label toastLabel = null!;
         private System.Windows.Forms.Timer toastTimer = null!;
+        private int _hoverRowIndex = -1;
 
         public PromotionsComposerControl(ManagerController controller)
         {
@@ -64,16 +69,19 @@ namespace CRMS.winforms.ManagerView
             {
                 Dock = DockStyle.Fill,
                 BackColor = Color.White,
-                BorderColor = GridLine,
+                BorderColor = TableBorder,
                 CornerRadius = 12,
                 Padding = new Padding(10)
             };
 
             promotionsGrid = Theme.CreateStyledGrid();
-            promotionsGrid.RowTemplate.Height = 52;
+            promotionsGrid.RowTemplate.Height = 56;
             promotionsGrid.CellBorderStyle = DataGridViewCellBorderStyle.Single;
             promotionsGrid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
-            promotionsGrid.GridColor = GridLine;
+            promotionsGrid.GridColor = Color.FromArgb(241, 245, 249);
+            promotionsGrid.ColumnHeadersDefaultCellStyle.Padding = new Padding(20, 0, 20, 0);
+            promotionsGrid.DefaultCellStyle.Padding = new Padding(20, 0, 20, 0);
+            promotionsGrid.AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle { BackColor = RowAlternateColor };
 
             promotionsGrid.Columns.Add("Title", "Title");
             promotionsGrid.Columns.Add("Message", "Message");
@@ -92,13 +100,37 @@ namespace CRMS.winforms.ManagerView
             foreach (DataGridViewColumn column in promotionsGrid.Columns)
             {
                 column.ReadOnly = true;
-                column.DefaultCellStyle.SelectionBackColor = Color.White;
+                column.DefaultCellStyle.SelectionBackColor = RowSelectedColor;
                 column.DefaultCellStyle.SelectionForeColor = Theme.TextPrimary;
             }
             promotionsGrid.Columns["Message"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
             promotionsGrid.Columns["Reason"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
 
             promotionsGrid.CellPainting += PromotionsGrid_CellPainting;
+
+            // Hover highlight — CreateStyledGrid doesn't give rows this on its
+            // own, so it's done here rather than for every grid in the app.
+            promotionsGrid.CellMouseMove += (s, e) =>
+            {
+                if (e.RowIndex == _hoverRowIndex) return;
+                SetRowHover(_hoverRowIndex, false);
+                _hoverRowIndex = e.RowIndex;
+                SetRowHover(_hoverRowIndex, true);
+            };
+            promotionsGrid.MouseLeave += (s, e) =>
+            {
+                SetRowHover(_hoverRowIndex, false);
+                _hoverRowIndex = -1;
+            };
+
+            // A thin accent bar on the selected row — drawn post-paint so it
+            // isn't erased by the row's own normal cell painting.
+            promotionsGrid.RowPostPaint += (s, e) =>
+            {
+                if (!promotionsGrid.Rows[e.RowIndex].Selected) return;
+                using var brush = new SolidBrush(ManagerAccent);
+                e.Graphics.FillRectangle(brush, e.RowBounds.Left, e.RowBounds.Top, 3, e.RowBounds.Height);
+            };
 
             ShowEmptyState();
             tableCard.Controls.Add(promotionsGrid);
@@ -350,7 +382,7 @@ namespace CRMS.winforms.ManagerView
             e.PaintBackground(e.CellBounds, true);
             e.Graphics!.SmoothingMode = SmoothingMode.AntiAlias;
 
-            var pillRect = Rectangle.Inflate(e.CellBounds, -12, -10);
+            var pillRect = Rectangle.Inflate(e.CellBounds, -12, -12);
             using (var path = RoundedRect.Path(pillRect, pillRect.Height / 2))
             using (var brush = new SolidBrush(colors.Bg))
             {
@@ -360,6 +392,12 @@ namespace CRMS.winforms.ManagerView
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
 
             e.Handled = true;
+        }
+
+        private void SetRowHover(int rowIndex, bool hovered)
+        {
+            if (rowIndex < 0 || rowIndex >= promotionsGrid.Rows.Count) return;
+            promotionsGrid.Rows[rowIndex].DefaultCellStyle.BackColor = hovered ? RowHoverColor : Color.Empty;
         }
 
         private void ShowToast(string message)

@@ -32,6 +32,15 @@ namespace CRMS.winforms.Controllers
         /// indicator — polled periodically, never blocks anything else.</summary>
         public Task<AuthApiClient.SyncStatusDto> GetSyncStatusAsync() => _apiClient.GetSyncStatusAsync(Token);
 
+        /// <summary>This logged-in Staff's own branch, if any — feeds the header's branch pill.</summary>
+        public Task<StaffProfileDto> GetMyProfileAsync() => _apiClient.GetMyStaffProfileAsync(Token);
+
+        /// <summary>Tenant-wide counts for the "today" strip on Pending Customers.</summary>
+        public Task<TodaySummaryDto> GetTodaySummaryAsync() => _apiClient.GetTodaySummaryAsync(Token);
+
+        /// <summary>Looks up a single ticket by number, for the header's "Find ticket #" search.</summary>
+        public Task<TicketLookupDto?> LookupTicketAsync(int ticketId) => _apiClient.LookupTicketAsync(Token, ticketId);
+
         // Changes the current page
         public string NavigateTo(string pageName)
         {

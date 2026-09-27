@@ -276,6 +276,13 @@ namespace CRMS.winforms.StaffView
                 return;
             }
 
+            if (radApproved.Checked && (ApprovedAmountValue is null || ApprovedAmountValue <= 0))
+            {
+                lblError.Text = "Please enter an approved amount greater than zero.";
+                lblError.Visible = true;
+                return;
+            }
+
             DialogResult = DialogResult.OK;
             Close();
         }

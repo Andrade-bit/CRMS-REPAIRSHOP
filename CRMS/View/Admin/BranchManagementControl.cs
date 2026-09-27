@@ -66,25 +66,37 @@ namespace CRMS.Winforms.Admin
             {
                 Name = "Edit",
                 HeaderText = "",
-                Text = "✎ Edit",
+                Text = "",
                 UseColumnTextForButtonValue = true,
                 FlatStyle = FlatStyle.Flat
             };
             branchGrid.Columns.Add(editColumn);
 
-            branchGrid.Columns["Name"].FillWeight = 160;
-            branchGrid.Columns["Address"].FillWeight = 220;
-            branchGrid.Columns["Phone"].FillWeight = 120;
-            branchGrid.Columns["Email"].FillWeight = 160;
-            branchGrid.Columns["Edit"].FillWeight = 90;
+            var archiveColumn = new DataGridViewButtonColumn
+            {
+                Name = "Archive",
+                HeaderText = "",
+                Text = "",
+                UseColumnTextForButtonValue = true,
+                FlatStyle = FlatStyle.Flat
+            };
+            branchGrid.Columns.Add(archiveColumn);
+
+            branchGrid.Columns["Name"].FillWeight = 150;
+            branchGrid.Columns["Address"].FillWeight = 200;
+            branchGrid.Columns["Phone"].FillWeight = 110;
+            branchGrid.Columns["Email"].FillWeight = 150;
+            branchGrid.Columns["Edit"].FillWeight = 55;
+            branchGrid.Columns["Archive"].FillWeight = 55;
 
             foreach (DataGridViewColumn column in branchGrid.Columns)
             {
-                if (column.Name == "Edit") continue;
+                if (column.Name is "Edit" or "Archive") continue;
                 column.ReadOnly = true;
             }
 
             branchGrid.CellClick += BranchGrid_CellClick;
+            branchGrid.CellPainting += BranchGrid_CellPainting;
 
             ShowEmptyState();
 
@@ -100,7 +112,7 @@ namespace CRMS.Winforms.Admin
 
         private void ShowEmptyState()
         {
-            branchGrid.Rows.Add("No branches yet.", "", "", "", "");
+            branchGrid.Rows.Add("No branches yet.", "", "", "", "", "");
             branchGrid.Rows[0].ReadOnly = true;
             branchGrid.Rows[0].DefaultCellStyle = new DataGridViewCellStyle
             {
@@ -164,11 +176,24 @@ namespace CRMS.Winforms.Admin
         private async void BranchGrid_CellClick(object? sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
-            if (branchGrid.Columns[e.ColumnIndex].Name != "Edit") return;
 
             var row = branchGrid.Rows[e.RowIndex];
             if (row.Tag is not BranchDto branch) return;
 
+            string columnName = branchGrid.Columns[e.ColumnIndex].Name;
+
+            if (columnName == "Edit")
+            {
+                await EditBranch(branch);
+            }
+            else if (columnName == "Archive")
+            {
+                await ArchiveBranch(branch);
+            }
+        }
+
+        private async Task EditBranch(BranchDto branch)
+        {
             using var dialog = new BranchEditDialog(branch);
             if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
@@ -179,6 +204,36 @@ namespace CRMS.Winforms.Admin
             {
                 MessageBox.Show(FindForm(), $"Could not save the branch details:\n{message}",
                     "Save Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            await LoadData();
+        }
+
+        private void BranchGrid_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            string columnName = branchGrid.Columns[e.ColumnIndex].Name;
+            if (columnName is not ("Edit" or "Archive")) return;
+
+            e.PaintBackground(e.CellBounds, true);
+            IconResources.DrawCentered(e.Graphics!, columnName == "Edit" ? "edit" : "archive", e.CellBounds);
+            e.Handled = true;
+        }
+
+        private async Task ArchiveBranch(BranchDto branch)
+        {
+            var confirm = MessageBox.Show(FindForm(),
+                $"Archive \"{branch.Name}\"? It will be hidden from Branch Management and can no longer be assigned to new Staff/Manager accounts, but existing records that reference it are kept.",
+                "Archive Branch", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (confirm != DialogResult.Yes) return;
+
+            var (success, message) = await _controller.ArchiveBranchAsync(branch.BranchId);
+
+            if (!success)
+            {
+                MessageBox.Show(FindForm(), $"Could not archive the branch:\n{message}",
+                    "Archive Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 

@@ -127,56 +127,6 @@ namespace CRMS.winforms.Api
         public DateTime CreatedAt { get; set; }
     }
 
-    public class PromotionStatusEntryDto
-    {
-        [JsonPropertyName("status")]
-        public string Status { get; set; } = string.Empty;
-
-        [JsonPropertyName("count")]
-        public int Count { get; set; }
-    }
-
-    public class PromotionSummaryEntryDto
-    {
-        [JsonPropertyName("promotionId")]
-        public int PromotionId { get; set; }
-
-        [JsonPropertyName("title")]
-        public string Title { get; set; } = string.Empty;
-
-        [JsonPropertyName("type")]
-        public string Type { get; set; } = string.Empty;
-
-        [JsonPropertyName("status")]
-        public string Status { get; set; } = string.Empty;
-
-        [JsonPropertyName("createdAt")]
-        public DateTime CreatedAt { get; set; }
-    }
-
-    public class ManagerDashboardDto
-    {
-        [JsonPropertyName("myActiveTickets")]
-        public int MyActiveTickets { get; set; }
-
-        [JsonPropertyName("awaitingCustomerApproval")]
-        public int AwaitingCustomerApproval { get; set; }
-
-        [JsonPropertyName("promotionsAwaitingAdmin")]
-        public int PromotionsAwaitingAdmin { get; set; }
-
-        [JsonPropertyName("promotionsApprovedMtd")]
-        public int PromotionsApprovedMtd { get; set; }
-
-        [JsonPropertyName("myTicketPipeline")]
-        public List<PipelineEntryDto> MyTicketPipeline { get; set; } = new();
-
-        [JsonPropertyName("myPromotionsBreakdown")]
-        public List<PromotionStatusEntryDto> MyPromotionsBreakdown { get; set; } = new();
-
-        [JsonPropertyName("recentPromotions")]
-        public List<PromotionSummaryEntryDto> RecentPromotions { get; set; } = new();
-    }
 
     public class DashboardDto
     {
@@ -368,6 +318,12 @@ namespace CRMS.winforms.Api
 
         [JsonPropertyName("createdAt")]
         public DateTime CreatedAt { get; set; }
+
+        [JsonPropertyName("handledBy")]
+        public string HandledBy { get; set; } = string.Empty;
+
+        [JsonPropertyName("ticketCreatedAt")]
+        public DateTime TicketCreatedAt { get; set; }
     }
 
     public class CustomerSearchResultDto
@@ -416,6 +372,45 @@ namespace CRMS.winforms.Api
 
         [JsonPropertyName("reviewedAt")]
         public DateTime? ReviewedAt { get; set; }
+    }
+
+    public class TicketLookupDto
+    {
+        [JsonPropertyName("ticketId")]
+        public int TicketId { get; set; }
+
+        [JsonPropertyName("customerName")]
+        public string CustomerName { get; set; } = string.Empty;
+
+        [JsonPropertyName("deviceName")]
+        public string DeviceName { get; set; } = string.Empty;
+
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = string.Empty;
+
+        [JsonPropertyName("createdAt")]
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class TodaySummaryDto
+    {
+        [JsonPropertyName("ticketsToday")]
+        public int TicketsToday { get; set; }
+
+        [JsonPropertyName("awaitingPickup")]
+        public int AwaitingPickup { get; set; }
+
+        [JsonPropertyName("needsApproval")]
+        public int NeedsApproval { get; set; }
+    }
+
+    public class StaffProfileDto
+    {
+        [JsonPropertyName("branchId")]
+        public int? BranchId { get; set; }
+
+        [JsonPropertyName("branchName")]
+        public string? BranchName { get; set; }
     }
 
     public class TicketDto
@@ -585,6 +580,9 @@ namespace CRMS.winforms.Api
 
         [JsonPropertyName("isCurrent")]
         public bool IsCurrent { get; set; }
+
+        [JsonPropertyName("planScope")]
+        public string PlanScope { get; set; } = "All";
     }
 
     /// <summary>A tenant's own Terms &amp; Conditions version — separate from
@@ -703,6 +701,34 @@ namespace CRMS.winforms.Api
             PropertyNameCaseInsensitive = true
         };
 
+        /// <summary>A failed request's body is JSON — either a plain string
+        /// (BadRequest("...")) or an array of strings (ASP.NET Identity's
+        /// result.Errors) — either of which shown raw would put literal quotes
+        /// or brackets in front of the user (e.g. ["Username 'x' is already
+        /// taken."]). This unwraps either shape into one readable sentence,
+        /// falling back to the raw body if it isn't JSON at all.</summary>
+        private static string CleanErrorMessage(string body)
+        {
+            if (string.IsNullOrWhiteSpace(body)) return body;
+
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                return doc.RootElement.ValueKind switch
+                {
+                    JsonValueKind.String => doc.RootElement.GetString() ?? body,
+                    JsonValueKind.Array => string.Join(" ", doc.RootElement.EnumerateArray()
+                        .Where(el => el.ValueKind == JsonValueKind.String)
+                        .Select(el => el.GetString())),
+                    _ => body
+                };
+            }
+            catch (JsonException)
+            {
+                return body;
+            }
+        }
+
         /// <summary>
         /// Calls POST /api/auth/login. Returns null if the credentials were
         /// rejected (401/400) or the request failed for any reason.
@@ -776,7 +802,7 @@ namespace CRMS.winforms.Api
                 if (response.IsSuccessStatusCode)
                     return (true, body.Trim('"'));
 
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -804,7 +830,7 @@ namespace CRMS.winforms.Api
                 if (response.IsSuccessStatusCode)
                     return (true, body.Trim('"'));
 
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -833,7 +859,7 @@ namespace CRMS.winforms.Api
                 if (response.IsSuccessStatusCode)
                     return (true, body.Trim('"'));
 
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1033,7 +1059,7 @@ namespace CRMS.winforms.Api
                     return (true, "");
 
                 string body = await response.Content.ReadAsStringAsync();
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1086,28 +1112,6 @@ namespace CRMS.winforms.Api
             catch (HttpRequestException)
             {
                 return new List<FeedbackEntryDto>();
-            }
-        }
-
-        /// <summary>Calls GET /api/manager/dashboard — the logged-in Manager's own
-        /// ticket/promotion numbers only, not shop-wide. Returns null if the request fails.</summary>
-        public async Task<ManagerDashboardDto?> GetManagerDashboardAsync(string token)
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Get, "/api/manager/dashboard");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-            try
-            {
-                var response = await _http.SendAsync(request);
-                if (!response.IsSuccessStatusCode)
-                    return null;
-
-                string body = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<ManagerDashboardDto>(body, _jsonOptions);
-            }
-            catch (HttpRequestException)
-            {
-                return null;
             }
         }
 
@@ -1176,7 +1180,7 @@ namespace CRMS.winforms.Api
                 string body = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
-                    return (false, body, null);
+                    return (false, CleanErrorMessage(body), null);
 
                 var ticket = JsonSerializer.Deserialize<TicketDto>(body, _jsonOptions);
                 return (true, "Created.", ticket);
@@ -1213,6 +1217,72 @@ namespace CRMS.winforms.Api
             }
         }
 
+        /// <summary>Calls GET /api/tickets/{id}/lookup — a single ticket by number,
+        /// for the header's "Find ticket #" search. Null if it doesn't exist
+        /// (or is archived).</summary>
+        public async Task<TicketLookupDto?> LookupTicketAsync(string token, int ticketId)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/tickets/{ticketId}/lookup");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _http.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                    return null;
+
+                string body = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<TicketLookupDto>(body, _jsonOptions);
+            }
+            catch (HttpRequestException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>Calls GET /api/tickets/today-summary — tenant-wide counts for
+        /// the small "today" strip on Pending Customers.</summary>
+        public async Task<TodaySummaryDto> GetTodaySummaryAsync(string token)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/api/tickets/today-summary");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _http.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                    return new TodaySummaryDto();
+
+                string body = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<TodaySummaryDto>(body, _jsonOptions) ?? new TodaySummaryDto();
+            }
+            catch (HttpRequestException)
+            {
+                return new TodaySummaryDto();
+            }
+        }
+
+        /// <summary>Calls GET /api/staff/me — the logged-in Staff's own branch, if any.</summary>
+        public async Task<StaffProfileDto> GetMyStaffProfileAsync(string token)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/api/staff/me");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _http.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                    return new StaffProfileDto();
+
+                string body = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<StaffProfileDto>(body, _jsonOptions) ?? new StaffProfileDto();
+            }
+            catch (HttpRequestException)
+            {
+                return new StaffProfileDto();
+            }
+        }
+
         /// <summary>Calls PUT /api/tickets/{id}/approval — records diagnosis findings
         /// and, once known, the customer's decision. decision: "Pending", "Approved",
         /// or "Rejected". Returns (true, "") on success, (false, errorMessage) on failure.</summary>
@@ -1234,7 +1304,7 @@ namespace CRMS.winforms.Api
                     return (true, "");
 
                 string body = await response.Content.ReadAsStringAsync();
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1259,7 +1329,7 @@ namespace CRMS.winforms.Api
                     return (true, "");
 
                 string body = await response.Content.ReadAsStringAsync();
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1284,7 +1354,7 @@ namespace CRMS.winforms.Api
                     return (true, "");
 
                 string body = await response.Content.ReadAsStringAsync();
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1312,7 +1382,7 @@ namespace CRMS.winforms.Api
                     return (true, "");
 
                 string body = await response.Content.ReadAsStringAsync();
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1356,7 +1426,7 @@ namespace CRMS.winforms.Api
                     return (true, "");
 
                 string body = await response.Content.ReadAsStringAsync();
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1379,7 +1449,7 @@ namespace CRMS.winforms.Api
                     return (true, "");
 
                 string body = await response.Content.ReadAsStringAsync();
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1405,7 +1475,7 @@ namespace CRMS.winforms.Api
                 string body = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
-                    return (false, body, null);
+                    return (false, CleanErrorMessage(body), null);
 
                 var promotion = JsonSerializer.Deserialize<PromotionDto>(body, _jsonOptions);
                 return (true, "Created.", promotion);
@@ -1454,7 +1524,29 @@ namespace CRMS.winforms.Api
                     return (true, "");
 
                 string body = await response.Content.ReadAsStringAsync();
-                return (false, body);
+                return (false, CleanErrorMessage(body));
+            }
+            catch (HttpRequestException)
+            {
+                return (false, "Could not reach the server.");
+            }
+        }
+
+        /// <summary>Calls PUT /api/promotions/{id}/archive — hides a promotion
+        /// from Admin's review list, without deleting it.</summary>
+        public async Task<(bool Success, string Message)> ArchivePromotionAsync(string token, int promotionId)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/promotions/{promotionId}/archive");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _http.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                    return (true, "");
+
+                string body = await response.Content.ReadAsStringAsync();
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1543,7 +1635,7 @@ namespace CRMS.winforms.Api
                 string body = await response.Content.ReadAsStringAsync();
 
                 if (!response.IsSuccessStatusCode)
-                    return (false, body, null);
+                    return (false, CleanErrorMessage(body), null);
 
                 return (true, "", JsonSerializer.Deserialize<BranchDto>(body, _jsonOptions));
             }
@@ -1571,7 +1663,30 @@ namespace CRMS.winforms.Api
                     return (true, "");
 
                 string body = await response.Content.ReadAsStringAsync();
-                return (false, body);
+                return (false, CleanErrorMessage(body));
+            }
+            catch (HttpRequestException)
+            {
+                return (false, "Could not reach the server.");
+            }
+        }
+
+        /// <summary>Calls PUT /api/branch/{id}/archive — hides a branch from
+        /// Branch Management and the branch picker, without deleting it.
+        /// Returns (true, "") on success, (false, errorMessage) on failure.</summary>
+        public async Task<(bool Success, string Message)> ArchiveBranchAsync(string token, int branchId)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/branch/{branchId}/archive");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _http.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                    return (true, "");
+
+                string body = await response.Content.ReadAsStringAsync();
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1626,7 +1741,30 @@ namespace CRMS.winforms.Api
                     return (true, "");
 
                 string body = await response.Content.ReadAsStringAsync();
-                return (false, body);
+                return (false, CleanErrorMessage(body));
+            }
+            catch (HttpRequestException)
+            {
+                return (false, "Could not reach the server.");
+            }
+        }
+
+        /// <summary>Calls PUT /api/terms/{id}/activate — makes an
+        /// already-published version current again, e.g. rolling back after a
+        /// bad edit, without republishing it as a "new" version. Admin only.</summary>
+        public async Task<(bool Success, string Message)> SetCurrentTermsVersionAsync(string token, int termsId)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/terms/{termsId}/activate");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _http.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                    return (true, "");
+
+                string body = await response.Content.ReadAsStringAsync();
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1702,7 +1840,7 @@ namespace CRMS.winforms.Api
                 if (response.IsSuccessStatusCode)
                     return (true, body.Trim('"'));
 
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1731,7 +1869,7 @@ namespace CRMS.winforms.Api
                 if (response.IsSuccessStatusCode)
                     return (true, body.Trim('"'));
 
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1758,7 +1896,7 @@ namespace CRMS.winforms.Api
                 if (response.IsSuccessStatusCode)
                     return (true, body.Trim('"'));
 
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1787,7 +1925,7 @@ namespace CRMS.winforms.Api
                 if (response.IsSuccessStatusCode)
                     return (true, body.Trim('"'));
 
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1844,9 +1982,9 @@ namespace CRMS.winforms.Api
         /// <summary>Calls POST /api/superadmin/terms — publishes a new Terms &amp;
         /// Agreement version and makes it current. Returns (true, "") on success,
         /// (false, errorMessage) on failure.</summary>
-        public async Task<(bool Success, string Message)> PublishTermsVersionAsync(string token, string version, string content)
+        public async Task<(bool Success, string Message)> PublishTermsVersionAsync(string token, string version, string content, string planScope)
         {
-            var payload = new { version, content };
+            var payload = new { version, content, planScope };
             string json = JsonSerializer.Serialize(payload);
 
             using var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
@@ -1860,11 +1998,62 @@ namespace CRMS.winforms.Api
                     return (true, "");
 
                 string body = await response.Content.ReadAsStringAsync();
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
                 return (false, "Could not reach the server.");
+            }
+        }
+
+        /// <summary>Calls PUT /api/superadmin/terms/{id}/scope — moves an
+        /// already-published version to a different plan without republishing
+        /// it. Returns (true, "") on success, (false, errorMessage) on failure.</summary>
+        public async Task<(bool Success, string Message)> UpdateTermsVersionScopeAsync(string token, int termsId, string planScope)
+        {
+            var payload = new { planScope };
+            string json = JsonSerializer.Serialize(payload);
+
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/superadmin/terms/{termsId}/scope") { Content = content };
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _http.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                    return (true, "");
+
+                string body = await response.Content.ReadAsStringAsync();
+                return (false, CleanErrorMessage(body));
+            }
+            catch (HttpRequestException)
+            {
+                return (false, "Could not reach the server.");
+            }
+        }
+
+        /// <summary>Calls GET /api/superadmin/terms/current/{plan} — the terms
+        /// version currently in effect for that plan (the plan-specific current
+        /// version, or the "All plans" one as a fallback). Returns null if
+        /// nothing has ever been published for it, or if the request fails.</summary>
+        public async Task<TermsVersionEntryDto?> GetCurrentTermsForPlanAsync(string token, string plan)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/superadmin/terms/current/{plan}");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _http.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                    return null;
+
+                string body = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<TermsVersionEntryDto>(body, _jsonOptions);
+            }
+            catch (HttpRequestException)
+            {
+                return null;
             }
         }
 
@@ -1910,7 +2099,7 @@ namespace CRMS.winforms.Api
                 if (response.IsSuccessStatusCode)
                     return (true, body.Trim('"'));
 
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {
@@ -1938,7 +2127,7 @@ namespace CRMS.winforms.Api
                 if (response.IsSuccessStatusCode)
                     return (true, body.Trim('"'));
 
-                return (false, body);
+                return (false, CleanErrorMessage(body));
             }
             catch (HttpRequestException)
             {

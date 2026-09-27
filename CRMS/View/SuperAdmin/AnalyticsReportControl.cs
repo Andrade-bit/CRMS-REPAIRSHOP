@@ -42,7 +42,7 @@ namespace CRMS.winforms.SuperAdmin
             };
 
             cardTickets = new StatCard("Tickets Resolved (30d)", "0", Theme.StatusRepairingText) { Size = new Size(230, 120), Margin = new Padding(0, 0, 16, 0) };
-            cardRevenue = new StatCard("Revenue (30d)", "₱0.00", Theme.Accent) { Size = new Size(230, 120), Margin = new Padding(0, 0, 16, 0) };
+            cardRevenue = new StatCard("Revenue (30d)", "₱ 0.00", Theme.Accent) { Size = new Size(230, 120), Margin = new Padding(0, 0, 16, 0) };
             cardStaff = new StatCard("Active Staff Accounts", "0", Theme.StatusRepairedText) { Size = new Size(230, 120), Margin = new Padding(0, 0, 16, 0) };
             cardRating = new StatCard("Average Rating", "—", Theme.StatusDiagnoseText) { Size = new Size(230, 120) };
 
@@ -98,7 +98,7 @@ namespace CRMS.winforms.SuperAdmin
             if (report is null)
             {
                 cardTickets.SetValue("0");
-                cardRevenue.SetValue("₱0.00");
+                cardRevenue.SetValue("₱ 0.00");
                 cardStaff.SetValue("0");
                 cardRating.SetValue("—");
                 ShowEmptyState();
@@ -106,7 +106,7 @@ namespace CRMS.winforms.SuperAdmin
             }
 
             cardTickets.SetValue(report.TicketsResolved30d.ToString());
-            cardRevenue.SetValue(report.Revenue30d.ToString("₱#,##0.00"));
+            cardRevenue.SetValue(report.Revenue30d.ToString("₱ #,##0.00"));
             cardStaff.SetValue(report.ActiveStaffAccounts.ToString());
             cardRating.SetValue(report.RatingCount > 0 ? $"{report.AverageRating:0.0} ★ ({report.RatingCount})" : "—");
 

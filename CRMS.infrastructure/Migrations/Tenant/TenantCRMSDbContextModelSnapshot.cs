@@ -35,6 +35,9 @@ namespace CRMS.infrastructure.Migrations.Tenant
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
+                    b.Property<DateTime?>("ArchivedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int?>("CloudId")
                         .HasColumnType("int");
 
@@ -66,7 +69,7 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     b.HasKey("BranchId");
 
-                    b.ToTable("Branches");
+                    b.ToTable("Branches", (string)null);
                 });
 
             modelBuilder.Entity("CRMS.domain.Entities.Customer", b =>
@@ -108,7 +111,7 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     b.HasKey("CustomerId");
 
-                    b.ToTable("Customers");
+                    b.ToTable("Customers", (string)null);
                 });
 
             modelBuilder.Entity("CRMS.domain.Entities.Feedback", b =>
@@ -142,7 +145,7 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     b.HasIndex("TicketId");
 
-                    b.ToTable("Feedbacks");
+                    b.ToTable("Feedbacks", (string)null);
                 });
 
             modelBuilder.Entity("CRMS.domain.Entities.Notification", b =>
@@ -173,7 +176,7 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     b.HasIndex("TicketId");
 
-                    b.ToTable("Notifications");
+                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("CRMS.domain.Entities.Payment", b =>
@@ -202,7 +205,7 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     b.HasIndex("TicketId");
 
-                    b.ToTable("Payments");
+                    b.ToTable("Payments", (string)null);
                 });
 
             modelBuilder.Entity("CRMS.domain.Entities.Promotion", b =>
@@ -212,6 +215,9 @@ namespace CRMS.infrastructure.Migrations.Tenant
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PromotionId"));
+
+                    b.Property<DateTime?>("ArchivedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<int?>("CloudId")
                         .HasColumnType("int");
@@ -265,7 +271,7 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     b.HasIndex("StaffId");
 
-                    b.ToTable("Promotions");
+                    b.ToTable("Promotions", (string)null);
                 });
 
             modelBuilder.Entity("CRMS.domain.Entities.RepairPart", b =>
@@ -291,7 +297,7 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     b.HasIndex("TicketId");
 
-                    b.ToTable("RepairParts");
+                    b.ToTable("RepairParts", (string)null);
                 });
 
             modelBuilder.Entity("CRMS.domain.Entities.ServiceTicket", b =>
@@ -398,7 +404,7 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     b.HasIndex("StaffId");
 
-                    b.ToTable("ServiceTickets");
+                    b.ToTable("ServiceTickets", (string)null);
                 });
 
             modelBuilder.Entity("CRMS.domain.Entities.Staff", b =>
@@ -444,7 +450,7 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     b.HasIndex("BranchId");
 
-                    b.ToTable("Staff");
+                    b.ToTable("Staff", (string)null);
                 });
 
             modelBuilder.Entity("CRMS.domain.Entities.TenantTermsVersion", b =>
@@ -475,7 +481,7 @@ namespace CRMS.infrastructure.Migrations.Tenant
 
                     b.HasKey("TermsId");
 
-                    b.ToTable("TermsVersions");
+                    b.ToTable("TermsVersions", (string)null);
                 });
 
             modelBuilder.Entity("CRMS.domain.Entities.Feedback", b =>

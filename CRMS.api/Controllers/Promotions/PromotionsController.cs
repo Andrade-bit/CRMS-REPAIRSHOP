@@ -30,7 +30,7 @@ namespace CRMS.api.Controllers
         [HttpGet]
         public async Task<ActionResult<List<PromotionResponse>>> GetPromotions([FromQuery] bool mine = false)
         {
-            var query = _tenantDb.Promotions.Include(p => p.Staff).AsQueryable();
+            var query = _tenantDb.Promotions.Include(p => p.Staff).Where(p => p.ArchivedAt == null).AsQueryable();
 
             if (mine)
             {

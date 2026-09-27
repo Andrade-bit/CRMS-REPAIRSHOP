@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using CRMS.winforms.Api;
 using CRMS.winforms.Controllers;
 using CRMS.winforms.Shared;
 
@@ -62,13 +63,29 @@ namespace CRMS.Winforms.Admin
             termsGrid.Columns.Add("Preview", "Preview");
             termsGrid.Columns.Add("Current", "Status");
 
+            var activateColumn = new DataGridViewButtonColumn
+            {
+                Name = "Activate",
+                HeaderText = "",
+                Text = "Set as Current",
+                UseColumnTextForButtonValue = true,
+                FlatStyle = FlatStyle.Flat
+            };
+            termsGrid.Columns.Add(activateColumn);
+
             termsGrid.Columns["Version"].FillWeight = 90;
             termsGrid.Columns["Created"].FillWeight = 110;
-            termsGrid.Columns["Preview"].FillWeight = 320;
+            termsGrid.Columns["Preview"].FillWeight = 300;
             termsGrid.Columns["Current"].FillWeight = 90;
+            termsGrid.Columns["Activate"].FillWeight = 130;
 
             foreach (DataGridViewColumn column in termsGrid.Columns)
+            {
+                if (column.CellTemplate is DataGridViewButtonCell) continue;
                 column.ReadOnly = true;
+            }
+
+            termsGrid.CellClick += TermsGrid_CellClick;
 
             ShowEmptyState();
 
@@ -98,7 +115,7 @@ namespace CRMS.Winforms.Admin
 
         private void ShowEmptyState()
         {
-            termsGrid.Rows.Add("No versions published yet.", "", "", "");
+            termsGrid.Rows.Add("No versions published yet.", "", "", "", "");
             termsGrid.Rows[0].ReadOnly = true;
             termsGrid.Rows[0].DefaultCellStyle = new DataGridViewCellStyle
             {
@@ -128,13 +145,43 @@ namespace CRMS.Winforms.Admin
                     version.Version,
                     version.CreatedAt.ToString("MMM d, yyyy"),
                     preview,
-                    version.IsCurrent ? "✓ Current" : "");
+                    version.IsCurrent ? "✓ Current" : "",
+                    version.IsCurrent ? "" : "Set as Current");
+
+                termsGrid.Rows[rowIndex].Tag = version;
+                termsGrid.Rows[rowIndex].Cells["Activate"].ReadOnly = version.IsCurrent;
 
                 if (version.IsCurrent)
                 {
                     termsGrid.Rows[rowIndex].DefaultCellStyle.ForeColor = Theme.StatusRepairedText;
                 }
             }
+        }
+
+        private async void TermsGrid_CellClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            if (termsGrid.Columns[e.ColumnIndex].Name != "Activate") return;
+
+            var row = termsGrid.Rows[e.RowIndex];
+            if (row.Cells[e.ColumnIndex].ReadOnly) return;
+            if (row.Tag is not TenantTermsVersionDto version) return;
+
+            var confirm = MessageBox.Show(FindForm(),
+                $"Make version \"{version.Version}\" the current terms? Staff will see this text on the Add Customer screen right away.",
+                "Set as Current", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (confirm != DialogResult.Yes) return;
+
+            var (success, message) = await _controller.SetCurrentTermsVersionAsync(version.TermsId);
+            if (!success)
+            {
+                MessageBox.Show(FindForm(), $"Could not set this version as current:\n{message}",
+                    "Update Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            await LoadData();
+            ShowToast($"✓ Version \"{version.Version}\" is now current.");
         }
 
         private async void AddButton_Click(object? sender, EventArgs e)

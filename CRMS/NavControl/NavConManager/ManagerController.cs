@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -32,6 +33,9 @@ namespace CRMS.winforms.Controllers
         /// indicator — polled periodically, never blocks anything else.</summary>
         public Task<AuthApiClient.SyncStatusDto> GetSyncStatusAsync() => _apiClient.GetSyncStatusAsync(Token);
 
+        /// <summary>This logged-in Manager's own branch, if any — feeds the header's branch pill.</summary>
+        public Task<StaffProfileDto> GetMyProfileAsync() => _apiClient.GetMyStaffProfileAsync(Token);
+
         /// <summary>Which sidebar modules this tenant's subscription plan
         /// unlocks — checked once at shell startup to show/hide nav items.</summary>
         public Task<ModuleAccessDto> GetModuleAccessAsync() => _apiClient.GetModuleAccessAsync(Token);
@@ -47,11 +51,15 @@ namespace CRMS.winforms.Controllers
 
         public string GetCurrentPage() => currentPage;
 
-        /// <summary>Every number on the Manager's Dashboard page — their own tickets
-        /// and promotions only, not shop-wide. Returns null if the request fails.</summary>
-        public Task<ManagerDashboardDto?> GetDashboardAsync()
+        /// <summary>The same rich dashboard Admin sees (revenue, ready-for-pickup,
+        /// unpaid, ratings, ticket pipeline, staff workload) — automatically
+        /// scoped to this Manager's own branch, so a branch-assigned Manager
+        /// gets real numbers to base a promotion's Reason on. A Manager with no
+        /// branch assigned sees the whole tenant, same as Admin's default.</summary>
+        public async Task<DashboardDto?> GetBranchDashboardAsync(DateTime? from = null, DateTime? to = null)
         {
-            return _apiClient.GetManagerDashboardAsync(Token);
+            var profile = await GetMyProfileAsync();
+            return await _apiClient.GetDashboardAsync(Token, from, to, profile.BranchId);
         }
 
         // ===================== Pending customers / tickets =====================
@@ -61,6 +69,9 @@ namespace CRMS.winforms.Controllers
             var tickets = await _apiClient.GetTicketsAsync(Token, "pending");
             return tickets.Select(ToTicketRecord).ToList();
         }
+
+        /// <summary>Tenant-wide counts for the "today" strip on Pending Customers.</summary>
+        public Task<TodaySummaryDto> GetTodaySummaryAsync() => _apiClient.GetTodaySummaryAsync(Token);
 
         public async Task<List<TicketRecord>> GetTicketHistoryAsync()
         {

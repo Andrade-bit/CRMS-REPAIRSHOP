@@ -22,9 +22,7 @@ namespace CRMS.Winforms.Admin
         // so Program.cs knows to show the Login screen again instead of exiting.
         public bool LoggedOut { get; private set; }
 
-        // AdminMainForm's constructor has never taken a real display name —
-        // this placeholder predates this shell swap and is unrelated to it.
-        private const string AdminName = "Admin Name";
+        private readonly string adminName;
 
         private ModernCrmsLayout layout = null!;
 
@@ -38,9 +36,10 @@ namespace CRMS.Winforms.Admin
 
         private readonly AdminController adminController;
 
-        public AdminMainForm(string token = "", int? companyId = null)
+        public AdminMainForm(string adminName = "Admin", string token = "", int? companyId = null)
         {
-            adminController = new AdminController(token, companyId);
+            this.adminName = adminName;
+            adminController = new AdminController(token, companyId, adminName);
             InitializeComponent();
             SetupContentPanels();
             NavigatePage("Dashboard");
@@ -55,8 +54,9 @@ namespace CRMS.Winforms.Admin
             Size = new Size(1200, 800);
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(1024, 700);
+            Icon = IconResources.AppIcon;
 
-            layout = new ModernCrmsLayout(CrmsRole.Admin, AdminName);
+            layout = new ModernCrmsLayout(CrmsRole.Admin, adminName);
             layout.PageRequested += (s, e) => HandlePageRequested(e.PageKey);
             layout.LogoutRequested += LogoutItem_Click;
 
@@ -65,16 +65,7 @@ namespace CRMS.Winforms.Admin
             layout.SetItemVisible("Branches", false);
 
             var syncIndicator = new SyncStatusIndicator(adminController.GetSyncStatusAsync);
-            layout.Header.Controls.Add(syncIndicator);
-
-            void RepositionSync()
-            {
-                syncIndicator.Location = new Point(
-                    layout.Header.Width - ModernCrmsLayout.ProfileWidth - layout.Header.Padding.Right - syncIndicator.Width - 24,
-                    (layout.Header.Height - syncIndicator.Height) / 2);
-            }
-            layout.Header.Resize += (s, e) => RepositionSync();
-            RepositionSync();
+            layout.AddHeaderExtra(syncIndicator);
 
             Controls.Add(layout);
 
@@ -110,7 +101,7 @@ namespace CRMS.Winforms.Admin
             dashboardControl.MonthlySalesRequested += (s, e) => JumpToReportsSection(AnalyticReportControl.SectionSales, "Reports.Sales");
             dashboardControl.CustomerFeedbackRequested += (s, e) => JumpToReportsSection(AnalyticReportControl.SectionFeedback, "Reports.Feedback");
             userManagementControl = new UserManagementControl(adminController) { Dock = DockStyle.Fill, Visible = false };
-            customerHistoryControl = new CustomerHistoryControl(allowArchive: true) { Dock = DockStyle.Fill, Visible = false };
+            customerHistoryControl = new CustomerHistoryControl(allowArchive: true, generatedByName: adminName, generatedByRole: "Admin") { Dock = DockStyle.Fill, Visible = false };
             customerHistoryControl.OnPickupChanged = (ticketId, pickedUp) => adminController.UpdatePickupStatusAsync(ticketId, pickedUp);
             customerHistoryControl.OnFeedbackSubmitted = (ticketId, rating, message) => adminController.SubmitFeedbackAsync(ticketId, rating, message);
             customerHistoryControl.OnPaymentChanged = (ticketId, paymentStatus, amountPaid) => adminController.UpdatePaymentStatusAsync(ticketId, paymentStatus, amountPaid);

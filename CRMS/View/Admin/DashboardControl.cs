@@ -365,7 +365,7 @@ namespace CRMS.Winforms.Admin
         private static string FormatPeso(decimal amount) => amount.ToString("₱#,##0.00");
         private static string FormatPesoCompact(decimal amount) => "₱" + amount.ToString("#,##0");
 
-        private class BufferedSurface : Control
+        internal class BufferedSurface : Control
         {
             public BufferedSurface()
             {
@@ -379,7 +379,10 @@ namespace CRMS.Winforms.Admin
         // Dashboard content
         // ----------------------------------------------------------
 
-        private sealed class DashboardCanvas : BufferedSurface
+        // internal (not private): Manager's own branch-scoped dashboard reuses
+        // this exact canvas — same drawing code, just fed branch-filtered data
+        // instead of tenant-wide data. See ManagerDashboardControl.
+        internal sealed class DashboardCanvas : BufferedSurface
         {
             public event EventHandler? ReviewRequested;
 
@@ -436,10 +439,16 @@ namespace CRMS.Winforms.Admin
             private bool _hoveredHero;
             private bool _hoveredRatings;
 
+            // False for Manager's branch dashboard — a Manager submits
+            // promotions but doesn't approve them, so the banner/button read
+            // as "view" rather than "review/approve" (Admin's default, true,
+            // keeps its exact original wording).
+            [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+            public bool CallerCanApprovePromotions { get; set; } = true;
+
             public DashboardCanvas()
             {
                 BackColor = BackgroundColor;
-                _reviewButton.Text = "Review now";
                 _reviewButton.Click += (s, e) => ReviewRequested?.Invoke(this, EventArgs.Empty);
                 Controls.Add(_reviewButton);
 
@@ -760,6 +769,7 @@ namespace CRMS.Winforms.Admin
             {
                 int pending = _data?.PromotionsPendingCount ?? 0;
                 _reviewButton.Visible = pending > 0;
+                _reviewButton.Text = CallerCanApprovePromotions ? "Review now" : "View promotions";
                 if (pending <= 0) return;
 
                 // Sits inside the approval banner, right after the KPI tile row
@@ -821,7 +831,7 @@ namespace CRMS.Winforms.Admin
                 float nextY = kpiY + kpiHeight + gap;
                 if (_data.PromotionsPendingCount > 0)
                 {
-                    DrawApprovalBanner(graphics, new RectangleF(left, nextY, contentWidth, 58), _data.PromotionsPendingCount);
+                    DrawApprovalBanner(graphics, new RectangleF(left, nextY, contentWidth, 58), _data.PromotionsPendingCount, CallerCanApprovePromotions);
                     nextY += 76;
                 }
 
@@ -965,7 +975,7 @@ namespace CRMS.Winforms.Admin
                 }
             }
 
-            private static void DrawApprovalBanner(Graphics graphics, RectangleF bounds, int pendingCount)
+            private static void DrawApprovalBanner(Graphics graphics, RectangleF bounds, int pendingCount, bool callerCanApprove)
             {
                 FillRounded(graphics, bounds, BannerColor, 12);
                 StrokeRounded(graphics, bounds, ColorTranslator.FromHtml("#F2D99C"), 12);
@@ -977,9 +987,9 @@ namespace CRMS.Winforms.Admin
                 graphics.FillRectangle(bellBrush, bellX + 2, bellY + 7, 12, 6);
                 graphics.FillEllipse(bellBrush, bellX + 6, bellY + 13, 4, 3);
 
-                string message = pendingCount == 1
-                    ? "1 promotion is waiting on your approval."
-                    : $"{pendingCount} promotions are waiting on your approval.";
+                string message = callerCanApprove
+                    ? (pendingCount == 1 ? "1 promotion is waiting on your approval." : $"{pendingCount} promotions are waiting on your approval.")
+                    : (pendingCount == 1 ? "1 promotion from your branch is waiting on Admin's review." : $"{pendingCount} promotions from your branch are waiting on Admin's review.");
 
                 DrawText(graphics, message, new RectangleF(bounds.X + 46, bounds.Y + 12, bounds.Width - 205, 34), 16, TextColor);
             }

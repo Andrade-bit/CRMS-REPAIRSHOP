@@ -66,7 +66,7 @@ namespace CRMS.Winforms.Admin
             {
                 Name = "Edit",
                 HeaderText = "",
-                Text = "Change Password",
+                Text = "\U0001F511 Change Password",
                 UseColumnTextForButtonValue = true,
                 FlatStyle = FlatStyle.Flat
             };
@@ -105,12 +105,13 @@ namespace CRMS.Winforms.Admin
 
                 bool canToggle = account.Role is "Staff" or "Manager";
                 e.Value = canToggle
-                    ? (account.Status == "Active" ? "Suspend" : "Reactivate")
+                    ? (account.Status == "Active" ? "⏸ Suspend" : "▶ Reactivate")
                     : "";
                 e.FormattingApplied = true;
             };
 
             userGrid.CellClick += UserGrid_CellClick;
+            userGrid.CellPainting += UserGrid_CellPainting;
 
             ShowEmptyState();
 
@@ -167,6 +168,48 @@ namespace CRMS.Winforms.Admin
             {
                 createAccountBtn.Enabled = true;
             }
+        }
+
+        /// <summary>Draws the padlock icon next to "Suspend" — "Reactivate" stays
+        /// plain text, since locking/unlocking is really only one clear icon
+        /// (there's no obvious "unlock" counterpart to pair with it here).</summary>
+        private void UserGrid_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            if (userGrid.Columns[e.ColumnIndex].Name != "ToggleStatus") return;
+
+            string label = e.Value?.ToString() ?? string.Empty;
+            e.PaintBackground(e.CellBounds, true);
+
+            if (label.Length == 0)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            if (label.Contains("Suspend"))
+            {
+                const int iconSize = 16;
+                const int gap = 6;
+                var textSize = TextRenderer.MeasureText("Suspend", userGrid.Font);
+                int totalWidth = iconSize + gap + textSize.Width;
+                int startX = e.CellBounds.X + (e.CellBounds.Width - totalWidth) / 2;
+                int centerY = e.CellBounds.Y + e.CellBounds.Height / 2;
+
+                var iconRect = new Rectangle(startX, centerY - iconSize / 2, iconSize, iconSize);
+                e.Graphics!.DrawImage(IconResources.Get("lock"), iconRect);
+
+                var textRect = new Rectangle(startX + iconSize + gap, e.CellBounds.Y, textSize.Width + 6, e.CellBounds.Height);
+                TextRenderer.DrawText(e.Graphics, "Suspend", userGrid.Font, textRect, Theme.TextPrimary,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            }
+            else
+            {
+                TextRenderer.DrawText(e.Graphics!, label, userGrid.Font, e.CellBounds, Theme.TextPrimary,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            }
+
+            e.Handled = true;
         }
 
         private async void UserGrid_CellClick(object? sender, DataGridViewCellEventArgs e)

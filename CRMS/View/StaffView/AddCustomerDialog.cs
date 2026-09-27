@@ -95,6 +95,13 @@ namespace CRMS.winforms.StaffView
         private FlowLayoutPanel _chipFlow = null!;
         private RoundedPanel _totalStrip = null!;
         private RoundedPanel _termsCard = null!;
+
+        private RoundedPanel _customerCard = null!;
+        private readonly List<Control> _customerRow0 = new(); // Name captions + boxes
+        private readonly List<Control> _customerRow1 = new(); // Phone/Email captions + boxes
+        private int _searchResultsTop;      // y where the results list / linked badge sit, right under the search box
+        private int _customerFieldsTopIdle; // y the Name row sits at when nothing is being searched
+        private const int SearchResultsReserve = 88; // extra height reserved only while results/linked badge are actually shown
         private Label _termsText = null!;
 
         private readonly HashSet<string> _selectedServices = new();
@@ -383,52 +390,81 @@ namespace CRMS.winforms.StaffView
         }
 
         private void AddLabeledField(RoundedPanel card, out RoundedTextBox box, string caption, string placeholder,
-            int x, int y, int width, bool stretchWithCard = false)
+            int x, int y, int width, bool stretchWithCard = false, List<Control>? trackIn = null, TextInputMode inputMode = TextInputMode.Any)
         {
-            card.Controls.Add(new Label
+            var label = new Label
             {
                 Text = caption,
                 Font = new Font("Segoe UI", CaptionFontSize, FontStyle.Bold),
                 ForeColor = SubtleGray,
                 AutoSize = true,
                 Location = new Point(x, y)
-            });
+            };
+            card.Controls.Add(label);
             box = new RoundedTextBox
             {
                 Location = new Point(x, y + FieldCaptionGap),
                 Size = new Size(width, FieldBoxHeight),
                 Placeholder = placeholder,
-                TextSize = InputFontSize
+                TextSize = InputFontSize,
+                InputMode = inputMode
             };
             if (stretchWithCard)
                 box.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             card.Controls.Add(box);
+
+            if (trackIn != null)
+            {
+                trackIn.Add(label);
+                trackIn.Add(box);
+            }
         }
 
         // ----- Customer Information -----
         private RoundedPanel BuildCustomerCard(int width)
         {
             var card = NewCard(width);
+            _customerCard = card;
             AddSectionHeader(card, "\U0001F464", "Customer Information");
 
             int fieldsTop = SectionHeaderHeight;
             if (_searchCustomers != null)
                 fieldsTop = BuildReturningCustomerSearch(card, width, fieldsTop);
+            _customerFieldsTopIdle = fieldsTop;
 
             int gap = 16;
             int triWidth = (width - CardPad * 2 - gap * 2) / 3;
             int lastTriWidth = (width - CardPad * 2) - triWidth * 2 - gap * 2;
             int halfWidth = (width - CardPad * 2 - gap) / 2;
 
-            AddLabeledField(card, out txtFirstName, "FIRST NAME", "e.g. Maria", CardPad, fieldsTop, triWidth);
-            AddLabeledField(card, out txtMiddleName, "MIDDLE NAME", "e.g. Anne", CardPad + triWidth + gap, fieldsTop, triWidth);
-            AddLabeledField(card, out txtLastName, "LAST NAME", "e.g. Santos", CardPad + (triWidth + gap) * 2, fieldsTop, lastTriWidth, stretchWithCard: true);
+            AddLabeledField(card, out txtFirstName, "FIRST NAME", "e.g. Maria", CardPad, fieldsTop, triWidth, trackIn: _customerRow0, inputMode: TextInputMode.Letters);
+            AddLabeledField(card, out txtMiddleName, "MIDDLE NAME", "e.g. Anne", CardPad + triWidth + gap, fieldsTop, triWidth, trackIn: _customerRow0, inputMode: TextInputMode.Letters);
+            AddLabeledField(card, out txtLastName, "LAST NAME", "e.g. Santos", CardPad + (triWidth + gap) * 2, fieldsTop, lastTriWidth, stretchWithCard: true, trackIn: _customerRow0, inputMode: TextInputMode.Letters);
 
-            AddLabeledField(card, out txtPhone, "PHONE NUMBER", "+1 (555) 000-0000", CardPad, fieldsTop + FieldBlockHeight, halfWidth);
-            AddLabeledField(card, out txtEmail, "EMAIL ADDRESS", "customer@email.com", CardPad + halfWidth + gap, fieldsTop + FieldBlockHeight, halfWidth, stretchWithCard: true);
+            AddLabeledField(card, out txtPhone, "PHONE NUMBER", "+1 (555) 000-0000", CardPad, fieldsTop + FieldBlockHeight, halfWidth, trackIn: _customerRow1, inputMode: TextInputMode.Phone);
+            AddLabeledField(card, out txtEmail, "EMAIL ADDRESS", "customer@email.com", CardPad + halfWidth + gap, fieldsTop + FieldBlockHeight, halfWidth, stretchWithCard: true, trackIn: _customerRow1);
 
-            card.Height = fieldsTop + FieldBlockHeight + FieldCaptionGap + FieldBoxHeight + 20;
+            RepositionCustomerFields();
             return card;
+        }
+
+        /// <summary>Moves the Name/Phone/Email fields (and resizes the card) to sit
+        /// right under the search box when idle, or make room for the results list
+        /// / linked-customer badge only while one of those is actually visible —
+        /// instead of always reserving that space whether or not anything's there.</summary>
+        private void RepositionCustomerFields()
+        {
+            int fieldsTop = _customerFieldsTopIdle;
+            if (lstSearchResults.Visible || lblLinkedBadge.Visible)
+                fieldsTop += SearchResultsReserve;
+
+            foreach (var c in _customerRow0)
+                c.Top = c is Label ? fieldsTop : fieldsTop + FieldCaptionGap;
+            foreach (var c in _customerRow1)
+                c.Top = c is Label ? fieldsTop + FieldBlockHeight : fieldsTop + FieldBlockHeight + FieldCaptionGap;
+
+            _customerCard.Height = fieldsTop + FieldBlockHeight + FieldCaptionGap + FieldBoxHeight + 20;
+            ReflowCards();
         }
 
         /// <summary>Adds a search box + results list above the name/phone/email
@@ -456,13 +492,12 @@ namespace CRMS.winforms.StaffView
             };
             card.Controls.Add(txtSearch);
 
-            int resultsTop = top + FieldCaptionGap + FieldBoxHeight + 6;
-            const int resultsHeight = 88;
+            _searchResultsTop = top + FieldCaptionGap + FieldBoxHeight + 6;
 
             lstSearchResults = new ListBox
             {
-                Location = new Point(CardPad, resultsTop),
-                Size = new Size(width - CardPad * 2, resultsHeight),
+                Location = new Point(CardPad, _searchResultsTop),
+                Size = new Size(width - CardPad * 2, SearchResultsReserve),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 Font = new Font("Segoe UI", InputFontSize - 1),
                 Visible = false
@@ -475,7 +510,7 @@ namespace CRMS.winforms.StaffView
                 Font = new Font("Segoe UI", CaptionFontSize, FontStyle.Bold),
                 ForeColor = Accent,
                 AutoSize = true,
-                Location = new Point(CardPad, resultsTop),
+                Location = new Point(CardPad, _searchResultsTop),
                 Visible = false
             };
             card.Controls.Add(lblLinkedBadge);
@@ -503,7 +538,9 @@ namespace CRMS.winforms.StaffView
                 searchTimer.Start();
             };
 
-            return resultsTop + resultsHeight + 16;
+            // No reservation yet — RepositionCustomerFields() expands this only
+            // once the results list or linked badge actually has something to show.
+            return _searchResultsTop + 16;
         }
 
         private List<CustomerSearchResultDto> _lastSearchResults = new();
@@ -513,6 +550,7 @@ namespace CRMS.winforms.StaffView
             if (_searchCustomers is null || query.Length < 2)
             {
                 lstSearchResults.Visible = false;
+                RepositionCustomerFields();
                 return;
             }
 
@@ -522,6 +560,7 @@ namespace CRMS.winforms.StaffView
                 lstSearchResults.Items.Add($"{c.FullName} — {c.PhoneNumber}  ({c.TicketCount} past ticket{(c.TicketCount == 1 ? "" : "s")})");
 
             lstSearchResults.Visible = _lastSearchResults.Count > 0;
+            RepositionCustomerFields();
         }
 
         private void LstSearchResults_Click(object? sender, EventArgs e)
@@ -539,6 +578,7 @@ namespace CRMS.winforms.StaffView
             lblLinkedBadge.Visible = true;
             lnkClearLink.Location = new Point(CardPad, lblLinkedBadge.Bottom + 4);
             lnkClearLink.Visible = true;
+            RepositionCustomerFields();
 
             // Pre-fill for display only — ignored by the API once ExistingCustomerIdValue is set.
             var nameParts = picked.FullName.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
@@ -556,6 +596,7 @@ namespace CRMS.winforms.StaffView
             txtSearch.Visible = true;
             lblLinkedBadge.Visible = false;
             lnkClearLink.Visible = false;
+            RepositionCustomerFields();
 
             txtFirstName.Value = "";
             txtMiddleName.Value = "";
@@ -934,6 +975,10 @@ namespace CRMS.winforms.StaffView
             control.Region = new Region(path);
         }
 
+        private static readonly System.Text.RegularExpressions.Regex NamePattern = new(@"^[A-Za-z][A-Za-z\s'.-]*$");
+        private static readonly System.Text.RegularExpressions.Regex PhonePattern = new(@"^[0-9][0-9\s\-+()]*$");
+        private static readonly System.Text.RegularExpressions.Regex EmailPattern = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+
         private void BtnSubmit_Click(object? sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(FirstNameValue) || string.IsNullOrWhiteSpace(LastNameValue) ||
@@ -941,6 +986,43 @@ namespace CRMS.winforms.StaffView
                 string.IsNullOrWhiteSpace(ConcernValue))
             {
                 lblError.Text = "Please fill in first name, last name, phone, device name, and concern.";
+                lblError.Visible = true;
+                return;
+            }
+
+            if (!NamePattern.IsMatch(FirstNameValue) || !NamePattern.IsMatch(LastNameValue) ||
+                (MiddleNameValue.Length > 0 && !NamePattern.IsMatch(MiddleNameValue)))
+            {
+                lblError.Text = "Names can only contain letters — no numbers or symbols.";
+                lblError.Visible = true;
+                return;
+            }
+
+            if (!PhonePattern.IsMatch(PhoneValue))
+            {
+                lblError.Text = "Phone number can only contain digits — no letters.";
+                lblError.Visible = true;
+                return;
+            }
+
+            if (EmailValue.Length > 0 && !EmailPattern.IsMatch(EmailValue))
+            {
+                lblError.Text = "Enter a valid email address, e.g. customer@email.com.";
+                lblError.Visible = true;
+                return;
+            }
+
+            if (PromotionIdValue.HasValue && txtDiscount.Value.Trim().Length > 0 &&
+                (!decimal.TryParse(txtDiscount.Value.Trim(), out var discount) || discount < 0))
+            {
+                lblError.Text = "Enter a valid, non-negative discount amount — or leave it blank for no discount.";
+                lblError.Visible = true;
+                return;
+            }
+
+            if (EstimatedCostValue <= 0)
+            {
+                lblError.Text = "Select at least one service/part, or the estimated cost can't be ₱0.";
                 lblError.Visible = true;
                 return;
             }

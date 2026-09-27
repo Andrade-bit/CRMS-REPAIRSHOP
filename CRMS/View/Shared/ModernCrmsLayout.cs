@@ -39,6 +39,7 @@ namespace CRMS.winforms.Shared
         private readonly Panel sidebar;
         private readonly Panel header;
         private readonly Label pageTitle;
+        private readonly FlowLayoutPanel headerExtras;
         private readonly FlowLayoutPanel navigation;
         private readonly List<SidebarButton> menuButtons = new();
         private readonly List<MenuGroup> menuGroups = new();
@@ -54,6 +55,24 @@ namespace CRMS.winforms.Shared
         /// <summary>The profile block's fixed width, for positioning anything
         /// added to Header relative to it.</summary>
         public const int ProfileWidth = 244;
+
+        /// <summary>The header bar's fixed height — never changes at runtime,
+        /// so anything centering itself vertically in the header (or in
+        /// HeaderExtras) can use this directly instead of reading Header.Height,
+        /// which isn't reliably resolved yet the first time a MainForm builds
+        /// its header content.</summary>
+        public const int HeaderHeight = 80;
+
+        /// <summary>Adds a control to the header, flush against the left edge of
+        /// the profile block, vertically centered — e.g. a sync status indicator
+        /// or a small search box. Dock-managed (not manually positioned from
+        /// Header.Width), so it stays correctly placed through every real
+        /// layout pass without a MainForm needing its own Resize plumbing.</summary>
+        public void AddHeaderExtra(Control control)
+        {
+            control.Margin = new Padding(0, Math.Max(0, (HeaderHeight - control.Height) / 2), 12, 0);
+            headerExtras.Controls.Add(control);
+        }
 
         public event EventHandler<CrmsNavigationEventArgs>? PageRequested;
         public event EventHandler? LogoutRequested;
@@ -97,7 +116,7 @@ namespace CRMS.winforms.Shared
             header = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 80,
+                Height = HeaderHeight,
                 BackColor = Color.White,
                 Padding = new Padding(26, 0, 24, 0)
             };
@@ -127,7 +146,27 @@ namespace CRMS.winforms.Shared
 
             Panel profile = BuildProfile(fullName, role.ToString());
 
+            // Dock-managed, not manually positioned from Header.Width like the
+            // old sync-indicator code was — that relied on reading Header.Width
+            // at the right moment and never reliably got a second chance to
+            // correct itself once real layout landed, which is why the sync
+            // indicator silently never showed up at all. Docking fixes this
+            // structurally: WinForms itself keeps headerExtras flush against
+            // profile's left edge on every real layout pass, no matter when.
+            headerExtras = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Right,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                BackColor = Color.White,
+                Margin = Padding.Empty,
+                Padding = new Padding(0, 0, 16, 0)
+            };
+
             header.Controls.Add(pageTitle);
+            header.Controls.Add(headerExtras);
             header.Controls.Add(profile);
 
             workspace.Controls.Add(ContentPanel);
@@ -182,14 +221,13 @@ namespace CRMS.winforms.Shared
                 BackColor = sidebarColor
             };
 
-            var logo = new Label
+            var logo = new PictureBox
             {
-                Text = "",
-                Font = new Font("Segoe MDL2 Assets", 28F),
-                ForeColor = Color.White,
-                Location = new Point(22, 28),
+                Image = IconResources.Get("logo"),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Location = new Point(18, 24),
                 Size = new Size(48, 48),
-                TextAlign = ContentAlignment.MiddleCenter
+                BackColor = Color.Transparent
             };
 
             var nameFont = new Font("Segoe UI", 23F, FontStyle.Bold);

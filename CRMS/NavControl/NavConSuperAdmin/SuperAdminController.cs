@@ -73,9 +73,19 @@ namespace CRMS.winforms.Controllers
         public System.Threading.Tasks.Task<List<TermsVersionEntryDto>> GetTermsVersionsAsync() =>
             _apiClient.GetTermsVersionsAsync(Token);
 
-        /// <summary>Publishes a new Terms &amp; Agreement version and makes it current.</summary>
-        public System.Threading.Tasks.Task<(bool Success, string Message)> PublishTermsVersionAsync(string version, string content) =>
-            _apiClient.PublishTermsVersionAsync(Token, version, content);
+        /// <summary>Publishes a new Terms &amp; Agreement version, scoped to one
+        /// plan (or "All"), and makes it current for that scope.</summary>
+        public System.Threading.Tasks.Task<(bool Success, string Message)> PublishTermsVersionAsync(string version, string content, string planScope) =>
+            _apiClient.PublishTermsVersionAsync(Token, version, content, planScope);
+
+        /// <summary>The terms version currently in effect for one plan — used
+        /// by the Subscriptions page to show each tenant which terms apply to them.</summary>
+        public System.Threading.Tasks.Task<TermsVersionEntryDto?> GetCurrentTermsForPlanAsync(string plan) =>
+            _apiClient.GetCurrentTermsForPlanAsync(Token, plan);
+
+        /// <summary>Moves an already-published version to a different plan.</summary>
+        public System.Threading.Tasks.Task<(bool Success, string Message)> UpdateTermsVersionScopeAsync(int termsId, string planScope) =>
+            _apiClient.UpdateTermsVersionScopeAsync(Token, termsId, planScope);
 
         // ===================== User Management (Admin accounts) =====================
 

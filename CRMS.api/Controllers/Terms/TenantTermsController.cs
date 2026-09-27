@@ -89,6 +89,30 @@ namespace CRMS.api.Controllers
             return Ok(new TenantTermsVersionEntry(newVersion.TermsId, newVersion.Version, newVersion.Content, newVersion.CreatedAt, newVersion.IsCurrent));
         }
 
+        /// <summary>Makes an already-published (older) version current again —
+        /// e.g. rolling back after a bad edit — without needing to republish it
+        /// as a "new" version. Admin only.</summary>
+        [HttpPut("{id}/activate")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> SetCurrent(int id)
+        {
+            var target = await _tenantDb.TermsVersions.FirstOrDefaultAsync(t => t.TermsId == id);
+            if (target is null)
+                return NotFound("No version found with that id.");
+
+            if (!target.IsCurrent)
+            {
+                var currentVersions = await _tenantDb.TermsVersions.Where(t => t.IsCurrent).ToListAsync();
+                foreach (var v in currentVersions)
+                    v.IsCurrent = false;
+
+                target.IsCurrent = true;
+                await _tenantDb.SaveChangesAsync();
+            }
+
+            return Ok();
+        }
+
         private int GetCallerCompanyId()
         {
             string? companyIdClaim = User.FindFirst("CompanyId")?.Value;

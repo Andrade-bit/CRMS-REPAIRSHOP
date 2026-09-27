@@ -51,6 +51,10 @@ namespace CRMS.winforms.StaffView
         private Label toastLabel = null!;
         private System.Windows.Forms.Timer toastTimer = null!;
 
+        private Label lblTicketsToday = null!;
+        private Label lblAwaitingPickup = null!;
+        private Label lblNeedsApproval = null!;
+
         /// <summary>Used by both Staff and Manager's shells — accepts anything that
         /// does the same ticket work (StaffController or ManagerController).</summary>
         public PendingCustomersControl(ITicketWorkController controller)
@@ -102,6 +106,7 @@ namespace CRMS.winforms.StaffView
             pendingGrid.Columns.Add("Customer", "Customer");
             pendingGrid.Columns.Add("Device", "Device");
             pendingGrid.Columns.Add("Contact", "Contact");
+            pendingGrid.Columns.Add("Staff", "Handled By");
             pendingGrid.Columns.Add("Branch", "Branch");
             pendingGrid.Columns.Add("Cost", "Est. Cost");
 
@@ -127,7 +132,7 @@ namespace CRMS.winforms.StaffView
             {
                 Name = "Edit",
                 HeaderText = "",
-                Text = "✎ Edit",
+                Text = "",
                 UseColumnTextForButtonValue = true,
                 FlatStyle = FlatStyle.Flat
             };
@@ -147,11 +152,12 @@ namespace CRMS.winforms.StaffView
             pendingGrid.Columns["Customer"].FillWeight = 130;
             pendingGrid.Columns["Device"].FillWeight = 130;
             pendingGrid.Columns["Contact"].FillWeight = 150;
+            pendingGrid.Columns["Staff"].FillWeight = 110;
             pendingGrid.Columns["Branch"].FillWeight = 100;
             pendingGrid.Columns["Cost"].FillWeight = 80;
             pendingGrid.Columns["Payment"].FillWeight = 100;
             pendingGrid.Columns["Status"].FillWeight = 110;
-            pendingGrid.Columns["Edit"].FillWeight = 90;
+            pendingGrid.Columns["Edit"].FillWeight = 55;
             pendingGrid.Columns["Approval"].FillWeight = 160;
 
             foreach (DataGridViewColumn column in pendingGrid.Columns)
@@ -190,6 +196,7 @@ namespace CRMS.winforms.StaffView
 
             Controls.Add(tableCard);
             Controls.Add(toastLabel);
+            Controls.Add(BuildTodayStrip());
             Controls.Add(Theme.CreateSpacer());
             Controls.Add(Theme.CreatePageHeader(
                 "Pending Customers", "Walk-in devices currently being diagnosed or repaired", addButton, showTitle: false, showSubtitle: false));
@@ -197,11 +204,72 @@ namespace CRMS.winforms.StaffView
             ResumeLayout(false);
         }
 
+        /// <summary>Slim, quiet strip of tenant-wide counts — not a KPI dashboard,
+        /// just enough for Staff to gauge the day at a glance. Text is filled in
+        /// by LoadData(); shows "—" until then.</summary>
+        private Panel BuildTodayStrip()
+        {
+            var strip = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 38,
+                BackColor = Color.FromArgb(240, 249, 255)
+            };
+            strip.Paint += (s, e) =>
+            {
+                using var pen = new Pen(StaffGridLine, 1);
+                e.Graphics.DrawLine(pen, 0, strip.Height - 1, strip.Width, strip.Height - 1);
+            };
+
+            var flow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Padding = new Padding(4, 10, 0, 0)
+            };
+
+            lblTicketsToday = AddStripLabel(flow, "\U0001F3AB", "— tickets today");
+            AddStripDot(flow);
+            lblAwaitingPickup = AddStripLabel(flow, "\U0001F4E6", "— awaiting pickup");
+            AddStripDot(flow);
+            lblNeedsApproval = AddStripLabel(flow, "⏰", "— needs approval");
+
+            strip.Controls.Add(flow);
+            return strip;
+        }
+
+        private static Label AddStripLabel(FlowLayoutPanel flow, string icon, string text)
+        {
+            var label = new Label
+            {
+                Text = $"{icon}  {text}",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Theme.TextPrimary,
+                Margin = new Padding(0, 2, 18, 0)
+            };
+            flow.Controls.Add(label);
+            return label;
+        }
+
+        private static void AddStripDot(FlowLayoutPanel flow)
+        {
+            flow.Controls.Add(new Label
+            {
+                Text = "·",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Theme.TextSecondary,
+                Margin = new Padding(0, 2, 18, 0)
+            });
+        }
+
         private void ShowEmptyState()
         {
             // Status cell is left null (not "") since it's a combo-box column —
             // an empty string isn't one of its valid items and would throw.
-            pendingGrid.Rows.Add("No pending customers.", "", "", "", "", "");
+            pendingGrid.Rows.Add("No pending customers.", "", "", "", "", "", "");
             pendingGrid.Rows[0].ReadOnly = true;
             pendingGrid.Rows[0].DefaultCellStyle = new DataGridViewCellStyle
             {
@@ -216,7 +284,15 @@ namespace CRMS.winforms.StaffView
             pendingGrid.CellValueChanged -= PendingGrid_CellValueChanged;
             pendingGrid.Rows.Clear();
 
-            var pending = await _controller.GetPendingTicketsAsync();
+            var pendingTask = _controller.GetPendingTicketsAsync();
+            var summaryTask = _controller.GetTodaySummaryAsync();
+            await Task.WhenAll(pendingTask, summaryTask);
+
+            var pending = pendingTask.Result;
+            var summary = summaryTask.Result;
+            lblTicketsToday.Text = $"\U0001F3AB  {summary.TicketsToday} ticket{(summary.TicketsToday == 1 ? "" : "s")} today";
+            lblAwaitingPickup.Text = $"\U0001F4E6  {summary.AwaitingPickup} awaiting pickup";
+            lblNeedsApproval.Text = $"⏰  {summary.NeedsApproval} needs approval";
 
             if (pending.Count == 0)
             {
@@ -231,6 +307,7 @@ namespace CRMS.winforms.StaffView
                         ticket.FullName,
                         ticket.DeviceName,
                         ticket.PhoneNumber,
+                        string.IsNullOrWhiteSpace(ticket.StaffName) ? "—" : ticket.StaffName,
                         string.IsNullOrWhiteSpace(ticket.BranchName) ? "—" : ticket.BranchName,
                         ticket.EstimatedCost.ToString("₱#,##0.00"),
                         ticket.PaymentStatus,
@@ -316,6 +393,15 @@ namespace CRMS.winforms.StaffView
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
             string columnName = pendingGrid.Columns[e.ColumnIndex].Name;
+
+            if (columnName == "Edit")
+            {
+                e.PaintBackground(e.CellBounds, true);
+                IconResources.DrawCentered(e.Graphics!, "edit", e.CellBounds);
+                e.Handled = true;
+                return;
+            }
+
             var colorMap = columnName switch
             {
                 "Status" => StatusPillColors,

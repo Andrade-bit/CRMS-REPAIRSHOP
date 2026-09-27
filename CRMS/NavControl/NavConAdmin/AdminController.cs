@@ -20,11 +20,15 @@ namespace CRMS.winforms.Controllers
         /// <summary>The logged-in Admin's own tenant — new Staff/Manager accounts they create belong to this same CompanyId.</summary>
         public int? CompanyId { get; }
 
-        public AdminController(string token = "", int? companyId = null)
+        /// <summary>The logged-in Admin's own display name — used to label who generated a PDF export.</summary>
+        public string AdminName { get; }
+
+        public AdminController(string token = "", int? companyId = null, string adminName = "Admin")
         {
             currentPage = "Dashboard";
             Token = token;
             CompanyId = companyId;
+            AdminName = adminName;
         }
 
         /// <summary>Every number on the Dashboard page — a real aggregate over this
@@ -218,6 +222,10 @@ namespace CRMS.winforms.Controllers
         public Task<(bool Success, string Message)> UpdateBranchAsync(int branchId, string name, string address, string phone, string email) =>
             _apiClient.UpdateBranchAsync(Token, branchId, name, address, phone, email);
 
+        /// <summary>Hides a branch from Branch Management and the branch picker — never a real delete.</summary>
+        public Task<(bool Success, string Message)> ArchiveBranchAsync(int branchId) =>
+            _apiClient.ArchiveBranchAsync(Token, branchId);
+
         // ===================== Promotions =====================
 
         /// <summary>Every promotion submitted across this tenant, by any Manager, whatever its status.</summary>
@@ -246,6 +254,10 @@ namespace CRMS.winforms.Controllers
         public Task<(bool Success, string Message)> RejectPromotionAsync(int promotionId) =>
             _apiClient.ReviewPromotionAsync(Token, promotionId, approve: false);
 
+        /// <summary>Hides a promotion from the review list — never a real delete.</summary>
+        public Task<(bool Success, string Message)> ArchivePromotionAsync(int promotionId) =>
+            _apiClient.ArchivePromotionAsync(Token, promotionId);
+
         // ===================== Terms & Conditions =====================
 
         /// <summary>Every Terms &amp; Conditions version this tenant has published,
@@ -257,5 +269,10 @@ namespace CRMS.winforms.Controllers
         /// current — Staff will see it on the Add Customer screen right away.</summary>
         public Task<(bool Success, string Message)> PublishTermsVersionAsync(string version, string content) =>
             _apiClient.PublishTenantTermsVersionAsync(Token, version, content);
+
+        /// <summary>Makes an already-published version current again, without
+        /// republishing it as a new one — e.g. rolling back after a bad edit.</summary>
+        public Task<(bool Success, string Message)> SetCurrentTermsVersionAsync(int termsId) =>
+            _apiClient.SetCurrentTermsVersionAsync(Token, termsId);
     }
 }

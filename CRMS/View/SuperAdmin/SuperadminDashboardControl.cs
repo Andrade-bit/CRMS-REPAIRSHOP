@@ -195,7 +195,10 @@ namespace CRMS.winforms.SuperAdmin
             _companiesValue.Text = subscriptions.Count.ToString();
             _activeSubsValue.Text = subscriptions.Count(t => t.Status == "Active").ToString();
             _activeAdminsValue.Text = admins.Count(a => a.Status == "Active").ToString();
-            _revenueValue.Text = (report?.Revenue30d ?? 0).ToString("₱#,##0", System.Globalization.CultureInfo.InvariantCulture);
+            // A space after the peso sign — without it, Segoe UI Bold at this
+            // size renders "₱" tight enough against the following digit that
+            // they visually overlap on some displays.
+            _revenueValue.Text = (report?.Revenue30d ?? 0).ToString("₱ #,##0", System.Globalization.CultureInfo.InvariantCulture);
 
             _summaryGrid.Rows.Clear();
             if (subscriptions.Count == 0)

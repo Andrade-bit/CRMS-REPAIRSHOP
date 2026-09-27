@@ -14,6 +14,10 @@ namespace CRMS.winforms.Controllers
     {
         Task<List<TicketRecord>> GetPendingTicketsAsync();
 
+        /// <summary>Tenant-wide counts for the small "today" strip above the
+        /// pending list — shared queue, so not scoped to whoever's logged in.</summary>
+        Task<TodaySummaryDto> GetTodaySummaryAsync();
+
         /// <summary>Finds returning customers by name/phone/email, so AddCustomerAsync
         /// can attach the new ticket to one instead of creating a duplicate.</summary>
         Task<List<CustomerSearchResultDto>> SearchCustomersAsync(string query);

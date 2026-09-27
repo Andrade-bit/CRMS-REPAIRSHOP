@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using CRMS.winforms.Api;
 using CRMS.winforms.Controllers;
 using CRMS.winforms.Shared;
 
@@ -57,17 +58,36 @@ namespace CRMS.winforms.SuperAdmin
             termsGrid.RowTemplate.Height = 52;
 
             termsGrid.Columns.Add("Version", "Version");
+            termsGrid.Columns.Add("Plan", "Plan");
             termsGrid.Columns.Add("Created", "Published");
             termsGrid.Columns.Add("Preview", "Preview");
             termsGrid.Columns.Add("Current", "Current");
 
+            var editColumn = new DataGridViewButtonColumn
+            {
+                Name = "Edit",
+                HeaderText = "",
+                Text = "",
+                UseColumnTextForButtonValue = true,
+                FlatStyle = FlatStyle.Flat
+            };
+            termsGrid.Columns.Add(editColumn);
+
             termsGrid.Columns["Version"].FillWeight = 90;
+            termsGrid.Columns["Plan"].FillWeight = 90;
             termsGrid.Columns["Created"].FillWeight = 110;
-            termsGrid.Columns["Preview"].FillWeight = 320;
+            termsGrid.Columns["Preview"].FillWeight = 260;
             termsGrid.Columns["Current"].FillWeight = 90;
+            termsGrid.Columns["Edit"].FillWeight = 55;
 
             foreach (DataGridViewColumn column in termsGrid.Columns)
+            {
+                if (column.Name == "Edit") continue;
                 column.ReadOnly = true;
+            }
+
+            termsGrid.CellClick += TermsGrid_CellClick;
+            termsGrid.CellPainting += TermsGrid_CellPainting;
 
             ShowEmptyState();
 
@@ -97,7 +117,7 @@ namespace CRMS.winforms.SuperAdmin
 
         private void ShowEmptyState()
         {
-            termsGrid.Rows.Add("No versions published yet.", "", "", "");
+            termsGrid.Rows.Add("No versions published yet.", "", "", "", "", "");
             termsGrid.Rows[0].ReadOnly = true;
             termsGrid.Rows[0].DefaultCellStyle = new DataGridViewCellStyle
             {
@@ -125,15 +145,53 @@ namespace CRMS.winforms.SuperAdmin
 
                 int rowIndex = termsGrid.Rows.Add(
                     version.Version,
+                    version.PlanScope == "All" ? "All plans" : version.PlanScope,
                     version.CreatedAt.ToString("MMM d, yyyy"),
                     preview,
-                    version.IsCurrent ? "✓ Current" : "");
+                    version.IsCurrent ? "✓ Current" : "",
+                    "");
+
+                termsGrid.Rows[rowIndex].Tag = version;
 
                 if (version.IsCurrent)
                 {
                     termsGrid.Rows[rowIndex].DefaultCellStyle.ForeColor = Theme.StatusRepairedText;
                 }
             }
+        }
+
+        private void TermsGrid_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            if (termsGrid.Columns[e.ColumnIndex].Name != "Edit") return;
+
+            e.PaintBackground(e.CellBounds, true);
+            IconResources.DrawCentered(e.Graphics!, "edit", e.CellBounds);
+            e.Handled = true;
+        }
+
+        private async void TermsGrid_CellClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            if (termsGrid.Columns[e.ColumnIndex].Name != "Edit") return;
+
+            var row = termsGrid.Rows[e.RowIndex];
+            if (row.Tag is not TermsVersionEntryDto version) return;
+
+            using var dialog = new EditTermsScopeDialog(version.Version, version.PlanScope);
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
+            if (dialog.PlanScopeValue == version.PlanScope) return;
+
+            var (success, message) = await _controller.UpdateTermsVersionScopeAsync(version.TermsId, dialog.PlanScopeValue);
+            if (!success)
+            {
+                MessageBox.Show(FindForm(), $"Could not update which plan this version applies to:\n{message}",
+                    "Update Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            await LoadData();
+            ShowToast($"✓ Version \"{version.Version}\" now applies to {(dialog.PlanScopeValue == "All" ? "All plans" : dialog.PlanScopeValue)}.");
         }
 
         private async void AddButton_Click(object? sender, EventArgs e)
@@ -145,7 +203,7 @@ namespace CRMS.winforms.SuperAdmin
             addButton.Enabled = false;
             try
             {
-                var (success, message) = await _controller.PublishTermsVersionAsync(dialog.VersionValue, dialog.ContentValue);
+                var (success, message) = await _controller.PublishTermsVersionAsync(dialog.VersionValue, dialog.ContentValue, dialog.PlanScopeValue);
                 if (!success)
                 {
                     MessageBox.Show(FindForm(), $"Could not publish this version:\n{message}",

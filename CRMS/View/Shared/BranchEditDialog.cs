@@ -80,7 +80,7 @@ namespace CRMS.winforms.Shared
             int halfWidth = (contentWidth - gap) / 2;
 
             AddCaption("PHONE", 24, y);
-            txtPhone = AddTextBox("09XX XXX XXXX", 24, y + 18, halfWidth);
+            txtPhone = AddTextBox("09XX XXX XXXX", 24, y + 18, halfWidth, inputMode: TextInputMode.Phone);
             txtPhone.Value = existing?.Phone ?? "";
 
             AddCaption("EMAIL", 24 + halfWidth + gap, y);
@@ -127,23 +127,41 @@ namespace CRMS.winforms.Shared
             });
         }
 
-        private RoundedTextBox AddTextBox(string placeholder, int x, int y, int width)
+        private RoundedTextBox AddTextBox(string placeholder, int x, int y, int width, TextInputMode inputMode = TextInputMode.Any)
         {
             var box = new RoundedTextBox
             {
                 Location = new Point(x, y),
                 Size = new Size(width, 36),
-                Placeholder = placeholder
+                Placeholder = placeholder,
+                InputMode = inputMode
             };
             Controls.Add(box);
             return box;
         }
+
+        private static readonly System.Text.RegularExpressions.Regex PhonePattern = new(@"^[0-9][0-9\s\-+()]*$");
+        private static readonly System.Text.RegularExpressions.Regex EmailPattern = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
 
         private void BtnSave_Click(object? sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(NameValue))
             {
                 lblError.Text = "Please enter a branch name.";
+                lblError.Visible = true;
+                return;
+            }
+
+            if (PhoneValue.Length > 0 && !PhonePattern.IsMatch(PhoneValue))
+            {
+                lblError.Text = "Phone number can only contain digits — no letters.";
+                lblError.Visible = true;
+                return;
+            }
+
+            if (EmailValue.Length > 0 && !EmailPattern.IsMatch(EmailValue))
+            {
+                lblError.Text = "Enter a valid email address, e.g. branch@shop.com.";
                 lblError.Visible = true;
                 return;
             }

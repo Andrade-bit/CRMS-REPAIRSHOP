@@ -55,4 +55,17 @@ namespace CRMS.api.Controllers
     public record RecordApprovalRequest(
         string DiagnosisFindings, decimal EstimatedCost, string Decision,
         decimal? ApprovedAmount = null, string? Method = null);
+
+    // Backs the small "today" strip on Pending Customers — tenant-wide, not
+    // scoped to whichever Staff is logged in, since the ticket queue itself
+    // is shared across everyone at the shop.
+    public record TodaySummaryResponse(int TicketsToday, int AwaitingPickup, int NeedsApproval);
+
+    // A quick, single-ticket lookup by number — for a customer calling in
+    // asking about their ticket, without paging through the full history.
+    public record TicketLookupResponse(int TicketId, string CustomerName, string DeviceName, string Status, DateTime CreatedAt);
+
+    // BranchId/BranchName are both null when the logged-in Staff isn't
+    // assigned to any specific branch — the header just omits the pill then.
+    public record StaffProfileResponse(int? BranchId, string? BranchName);
 }

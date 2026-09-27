@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using CRMS.winforms.Api;
 using CRMS.winforms.Controllers;
@@ -69,6 +70,7 @@ namespace CRMS.winforms.SuperAdmin
             tenantGrid.Columns.Add("Username", "Username");
             tenantGrid.Columns.Add("Onboarded", "Onboarded");
             tenantGrid.Columns.Add("Plan", "Plan");
+            tenantGrid.Columns.Add("Terms", "Terms");
             tenantGrid.Columns.Add("BillingCycle", "Billing Cycle");
             tenantGrid.Columns.Add("Amount", "Amount");
             tenantGrid.Columns.Add("NextBilling", "Next Billing");
@@ -87,6 +89,7 @@ namespace CRMS.winforms.SuperAdmin
             tenantGrid.Columns["Username"].FillWeight = 110;
             tenantGrid.Columns["Onboarded"].FillWeight = 90;
             tenantGrid.Columns["Plan"].FillWeight = 90;
+            tenantGrid.Columns["Terms"].FillWeight = 100;
             tenantGrid.Columns["BillingCycle"].FillWeight = 90;
             tenantGrid.Columns["Amount"].FillWeight = 90;
             tenantGrid.Columns["NextBilling"].FillWeight = 90;
@@ -138,7 +141,7 @@ namespace CRMS.winforms.SuperAdmin
         {
             // Combo-box columns can't take an empty-string cell value, so that
             // cell is left null instead.
-            tenantGrid.Rows.Add("No tenants onboarded yet.", "", "", "", "", "", "", "", null);
+            tenantGrid.Rows.Add("No tenants onboarded yet.", "", "", "", "", "", "", "", "", null);
             tenantGrid.Rows[0].ReadOnly = true;
             tenantGrid.Rows[0].DefaultCellStyle = new DataGridViewCellStyle
             {
@@ -168,14 +171,29 @@ namespace CRMS.winforms.SuperAdmin
             }
             else
             {
+                // One lookup per distinct plan (not per tenant) — most tenants
+                // share a handful of plans, so this avoids redundant identical
+                // calls when many tenants are on the same plan.
+                var distinctPlans = _tenants.Select(t => t.Plan).Distinct().ToList();
+                var termsByPlan = new Dictionary<string, TermsVersionEntryDto?>();
+                await System.Threading.Tasks.Task.WhenAll(distinctPlans.Select(async plan =>
+                {
+                    termsByPlan[plan] = await _controller.GetCurrentTermsForPlanAsync(plan);
+                }));
+
                 foreach (var tenant in _tenants)
                 {
+                    string termsLabel = termsByPlan.TryGetValue(tenant.Plan, out var terms) && terms != null
+                        ? terms.Version
+                        : "—";
+
                     int rowIndex = tenantGrid.Rows.Add(
                         tenant.CompanyName,
                         tenant.AdminName,
                         tenant.AdminUsername,
                         tenant.CompanyCreatedAt.ToString("MMM d, yyyy"),
                         PlanDisplayName(tenant.Plan),
+                        termsLabel,
                         tenant.BillingCycle,
                         tenant.Amount.HasValue ? tenant.Amount.Value.ToString("₱#,##0.00") : "—",
                         tenant.NextBillingDate?.ToString("MMM d, yyyy") ?? "—",
@@ -199,6 +217,19 @@ namespace CRMS.winforms.SuperAdmin
 
             using var dialog = new SubscriptionEditDialog(_tenants);
             if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
+
+            var terms = await _controller.GetCurrentTermsForPlanAsync(dialog.PlanKeyValue);
+            if (terms is null)
+            {
+                MessageBox.Show(FindForm(),
+                    "No terms have been published for this plan yet (and no \"All plans\" fallback exists either). " +
+                    "Publish a version on the Terms & Agreement page first, then try subscribing again.",
+                    "No Terms Published", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using var review = new TermsReviewDialog(PlanDisplayName(dialog.PlanKeyValue), terms.Version, terms.Content);
+            if (review.ShowDialog(FindForm()) != DialogResult.OK) return;
 
             subscribeBtn.Enabled = false;
             try

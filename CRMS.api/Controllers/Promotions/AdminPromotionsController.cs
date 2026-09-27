@@ -26,6 +26,21 @@ namespace CRMS.api.Controllers
         [HttpPut("{id}/reject")]
         public Task<IActionResult> Reject(int id) => SetStatus(id, PromotionStatus.Rejected);
 
+        /// <summary>Hides a promotion from Admin's review list. Never a real
+        /// delete — the record (and its approval/rejection history) is kept.</summary>
+        [HttpPut("{id}/archive")]
+        public async Task<IActionResult> Archive(int id)
+        {
+            var promotion = await _tenantDb.Promotions.FirstOrDefaultAsync(p => p.PromotionId == id);
+            if (promotion is null)
+                return NotFound();
+
+            promotion.ArchivedAt = DateTime.UtcNow;
+            await _tenantDb.SaveChangesAsync();
+
+            return Ok();
+        }
+
         private async Task<IActionResult> SetStatus(int id, string status)
         {
             var promotion = await _tenantDb.Promotions.FirstOrDefaultAsync(p => p.PromotionId == id);

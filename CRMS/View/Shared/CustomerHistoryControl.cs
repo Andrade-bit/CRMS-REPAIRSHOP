@@ -95,11 +95,23 @@ namespace CRMS.winforms.Shared
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Func<int, int, string, Task<(bool Success, string Message)>>? OnFeedbackSubmitted { get; set; }
 
-        public CustomerHistoryControl(bool allowArchive = false)
+        private readonly string _generatedByName;
+        private readonly string _generatedByRole;
+
+        public CustomerHistoryControl(bool allowArchive = false, string generatedByName = "", string generatedByRole = "")
         {
             _allowArchive = allowArchive;
+            _generatedByName = generatedByName;
+            _generatedByRole = generatedByRole;
             InitializeComponent();
         }
+
+        /// <summary>Who to credit as the exporter on a PDF ("Angelo Cruz (Admin)") —
+        /// empty when the host page didn't supply a name, in which case the PDF
+        /// simply omits the line.</summary>
+        private string GeneratedByLabel() =>
+            string.IsNullOrWhiteSpace(_generatedByName) ? "" :
+            string.IsNullOrWhiteSpace(_generatedByRole) ? _generatedByName : $"{_generatedByName} ({_generatedByRole})";
 
         private void InitializeComponent()
         {
@@ -835,18 +847,26 @@ namespace CRMS.winforms.Shared
                 $"#{t.TicketId:0000}",
                 t.FullName,
                 t.DeviceName,
+                string.IsNullOrWhiteSpace(t.StaffName) ? "-" : t.StaffName,
+                t.CreatedAt.ToString("MMM d, yyyy"),
                 t.Status,
                 t.CompletedAt?.ToString("MMM d, yyyy") ?? "-",
                 t.PaymentStatus,
                 t.EstimatedCost.ToString("₱#,##0.00")
             }).ToList();
 
+            var chart = new PdfBarChart("Tickets by Outcome",
+                _filteredTickets.GroupBy(t => t.Status)
+                    .OrderByDescending(g => g.Count())
+                    .Select(g => (g.Key, (double)g.Count()))
+                    .ToList());
+
             try
             {
                 PdfExportService.ExportTable(
                     "Customer History", $"{_filteredTickets.Count} matching record{(_filteredTickets.Count == 1 ? "" : "s")}",
-                    new[] { "Ticket #", "Customer", "Device", "Outcome", "Completed", "Payment", "Amount" },
-                    rows, dialog.FileName);
+                    new[] { "Ticket #", "Customer", "Device", "Handled By", "Created", "Outcome", "Completed", "Payment", "Amount" },
+                    rows, dialog.FileName, generatedBy: GeneratedByLabel(), chart: chart);
                 MessageBox.Show(this, "PDF saved successfully.", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
@@ -868,7 +888,7 @@ namespace CRMS.winforms.Shared
 
             try
             {
-                PdfExportService.ExportTicketHistory(ticket, dialog.FileName);
+                PdfExportService.ExportTicketHistory(ticket, dialog.FileName, generatedBy: GeneratedByLabel());
                 MessageBox.Show(this, "PDF saved successfully.", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)

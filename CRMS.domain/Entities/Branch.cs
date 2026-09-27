@@ -16,6 +16,11 @@ namespace CRMS.domain.Entities
         public string Email { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        // Never a real delete — Staff/ServiceTicket rows already pointing at
+        // this branch keep that BranchId. Archiving just hides it from the
+        // branch list and from being assigned to new Staff/tickets.
+        public DateTime? ArchivedAt { get; set; }
+
         // ----- Local-first cloud sync ----- (see Staff.cs for the full explanation)
         public bool IsSynced { get; set; } = false;
         public DateTime? SyncedAt { get; set; }
