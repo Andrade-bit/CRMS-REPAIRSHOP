@@ -1,3 +1,4 @@
+using CRMS.api.Services;
 using CRMS.domain.Entities;
 using CRMS.infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -21,11 +22,34 @@ namespace CRMS.api.Controllers
     {
         private readonly MasterCRMSDbContext _masterDb;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ITenantSyncStatusStore _syncStatusStore;
 
-        public SubscriptionsController(MasterCRMSDbContext masterDb, UserManager<ApplicationUser> userManager)
+        public SubscriptionsController(MasterCRMSDbContext masterDb, UserManager<ApplicationUser> userManager, ITenantSyncStatusStore syncStatusStore)
         {
             _masterDb = masterDb;
             _userManager = userManager;
+            _syncStatusStore = syncStatusStore;
+        }
+
+        /// <summary>Every active tenant's local-first sync state at once — the
+        /// per-company /api/sync/status endpoint can't answer this for
+        /// Superadmin, since a Superadmin login carries no CompanyId of its own.</summary>
+        [HttpGet("sync-status")]
+        public async Task<ActionResult<List<TenantSyncStatusEntry>>> GetSyncStatus()
+        {
+            var companies = await _masterDb.Companies.Where(c => c.IsActive).OrderBy(c => c.CompanyName).ToListAsync();
+
+            var result = companies.Select(company =>
+            {
+                var snapshot = _syncStatusStore.GetStatus(company.CompanyId);
+                return new TenantSyncStatusEntry(
+                    company.CompanyId, company.CompanyName,
+                    snapshot?.State.ToString() ?? "Unknown",
+                    snapshot?.PendingCount ?? 0,
+                    snapshot?.LastSyncedAt);
+            }).ToList();
+
+            return Ok(result);
         }
 
         [HttpGet]

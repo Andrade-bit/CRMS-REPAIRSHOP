@@ -25,4 +25,22 @@ namespace CRMS.api.Services
         public TenantSyncStatusSnapshot? GetStatus(int companyId) =>
             _statuses.TryGetValue(companyId, out var snapshot) ? snapshot : null;
     }
+
+    /// <summary>Same idea as ITenantSyncStatusStore, but there's only ever one
+    /// Master database (not one per tenant), so this just holds a single
+    /// snapshot instead of a dictionary keyed by CompanyId.</summary>
+    public interface IMasterSyncStatusStore
+    {
+        void SetStatus(TenantSyncStatusSnapshot snapshot);
+        TenantSyncStatusSnapshot? GetStatus();
+    }
+
+    public class MasterSyncStatusStore : IMasterSyncStatusStore
+    {
+        private TenantSyncStatusSnapshot? _status;
+
+        public void SetStatus(TenantSyncStatusSnapshot snapshot) => _status = snapshot;
+
+        public TenantSyncStatusSnapshot? GetStatus() => _status;
+    }
 }

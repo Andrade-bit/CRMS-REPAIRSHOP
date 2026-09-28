@@ -31,4 +31,9 @@ namespace CRMS.api.Controllers
     public record PlatformReportResponse(
         int TicketsResolved30d, decimal Revenue30d, int ActiveStaffAccounts, double AverageRating, int RatingCount,
         List<TenantPlatformSummary> ByTenant);
+
+    /// <summary>One tenant's local-first sync state, for the Superadmin
+    /// header's platform-wide sync pill — same State/PendingCount shape
+    /// SyncStatusController reports per-tenant, just for every tenant at once.</summary>
+    public record TenantSyncStatusEntry(int CompanyId, string CompanyName, string State, int PendingCount, DateTime? LastSyncedAt);
 }

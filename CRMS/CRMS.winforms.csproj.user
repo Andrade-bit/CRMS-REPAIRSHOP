@@ -70,6 +70,12 @@
     <Compile Update="View\Shared\NavItem.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Update="View\Shared\PlatformSyncBreakdownDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="View\Shared\PlatformSyncStatusIndicator.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Update="View\Shared\RoundedMultilineBox.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -84,6 +90,9 @@
     </Compile>
     <Compile Update="View\Shared\SyncStatusIndicator.cs">
       <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="View\Shared\TermsReviewDialog.cs">
+      <SubType>Form</SubType>
     </Compile>
     <Compile Update="View\Shared\TicketLookupDialog.cs">
       <SubType>Form</SubType>
@@ -108,6 +117,12 @@
     </Compile>
     <Compile Update="View\SuperAdmin\AnalyticsReportControl.cs">
       <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="View\SuperAdmin\EditTermsScopeDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="View\SuperAdmin\SubscriptionDetailDialog.cs">
+      <SubType>Form</SubType>
     </Compile>
     <Compile Update="View\SuperAdmin\SuperadminDashboardControl.cs">
       <SubType>UserControl</SubType>

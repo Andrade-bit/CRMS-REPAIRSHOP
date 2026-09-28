@@ -1,8 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace CRMS.domain.Entities
 {
-    public class Superadmin
+    public class Superadmin : ISyncTracked
     {
         public int SuperadminId { get; set; }
 
@@ -12,5 +13,10 @@ namespace CRMS.domain.Entities
 
         public ICollection<Admin> Admins { get; set; } = new List<Admin>();
         public ICollection<TermsAgreement> TermsAgreements { get; set; } = new List<TermsAgreement>();
+
+        // ----- Local-first cloud sync ----- (see Staff.cs for the full explanation)
+        public bool IsSynced { get; set; } = false;
+        public DateTime? SyncedAt { get; set; }
+        public int? CloudId { get; set; }
     }
 }

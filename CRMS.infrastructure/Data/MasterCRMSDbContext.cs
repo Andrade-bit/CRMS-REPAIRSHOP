@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using CRMS.domain.Entities;
 
@@ -15,6 +17,12 @@ namespace CRMS.infrastructure.Data
         public DbSet<Superadmin> Superadmins => Set<Superadmin>();
         public DbSet<Admin> Admins => Set<Admin>();
         public DbSet<TermsAgreement> TermsAgreements => Set<TermsAgreement>();
+
+        // Set true only by MasterSyncBackgroundService while it's writing back
+        // the result of a successful push — without this, SaveChanges's own
+        // auto-dirty logic below would immediately re-flag the row it just
+        // finished syncing as unsynced again. Same pattern as TenantCRMSDbContext.
+        public bool SuppressSyncDirtyTracking { get; set; }
 
         public MasterCRMSDbContext(DbContextOptions<MasterCRMSDbContext> options) : base(options) { }
 
@@ -39,6 +47,7 @@ namespace CRMS.infrastructure.Data
                 entity.HasIndex(x => x.CompanyCode)
                     .IsUnique();
             });
+            ConfigureSyncColumns(builder.Entity<Company>());
 
             builder.Entity<CompanyDatabase>(entity =>
             {
@@ -89,6 +98,9 @@ namespace CRMS.infrastructure.Data
                     .WithMany()
                     .HasForeignKey(x => x.CompanyId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(x => x.IsSynced).HasDefaultValue(false);
+                entity.Property(x => x.SyncedAt);
             });
 
             // ===================== Core ERD entities (Master-only) =====================
@@ -104,6 +116,7 @@ namespace CRMS.infrastructure.Data
 
                 entity.HasIndex(x => x.ApplicationUserId).IsUnique();
             });
+            ConfigureSyncColumns(builder.Entity<Superadmin>());
 
             builder.Entity<Admin>(entity =>
             {
@@ -129,6 +142,7 @@ namespace CRMS.infrastructure.Data
                     .HasForeignKey(x => x.SuperadminId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+            ConfigureSyncColumns(builder.Entity<Admin>());
 
             builder.Entity<TermsAgreement>(entity =>
             {
@@ -143,6 +157,46 @@ namespace CRMS.infrastructure.Data
                     .HasForeignKey(x => x.SuperadminId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+            ConfigureSyncColumns(builder.Entity<TermsAgreement>());
+        }
+
+        private static void ConfigureSyncColumns<T>(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T> entity)
+            where T : class, ISyncTracked
+        {
+            entity.Property(x => x.IsSynced).HasDefaultValue(false);
+            entity.Property(x => x.CloudId);
+            entity.Property(x => x.SyncedAt);
+        }
+
+        /// <summary>Every add/edit to a synced entity type automatically flags it
+        /// unsynced — same pattern as TenantCRMSDbContext. ApplicationUser can't
+        /// implement ISyncTracked (its Id is a string, not the int CloudId that
+        /// interface expects), so it's checked separately here.</summary>
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            MarkChangedSyncEntitiesDirty();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            MarkChangedSyncEntitiesDirty();
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        private void MarkChangedSyncEntitiesDirty()
+        {
+            if (SuppressSyncDirtyTracking) return;
+
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.State is not (EntityState.Added or EntityState.Modified)) continue;
+
+                if (entry.Entity is ISyncTracked synced)
+                    synced.IsSynced = false;
+                else if (entry.Entity is ApplicationUser user)
+                    user.IsSynced = false;
+            }
         }
     }
 }

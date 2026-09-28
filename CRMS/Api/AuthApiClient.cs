@@ -541,6 +541,27 @@ namespace CRMS.winforms.Api
         public DateTime CompanyCreatedAt { get; set; }
     }
 
+    /// <summary>One tenant's local-first sync state — same shape as
+    /// SyncStatusDto, plus which tenant it's for. Used by Superadmin's
+    /// header, since a Superadmin login has no single tenant of its own.</summary>
+    public class TenantSyncStatusEntryDto
+    {
+        [JsonPropertyName("companyId")]
+        public int CompanyId { get; set; }
+
+        [JsonPropertyName("companyName")]
+        public string CompanyName { get; set; } = string.Empty;
+
+        [JsonPropertyName("state")]
+        public string State { get; set; } = "Unknown";
+
+        [JsonPropertyName("pendingCount")]
+        public int PendingCount { get; set; }
+
+        [JsonPropertyName("lastSyncedAt")]
+        public DateTime? LastSyncedAt { get; set; }
+    }
+
     /// <summary>Which sidebar modules the caller's own tenant currently has,
     /// per its subscription plan — see CRMS.api's ModuleAccessController.</summary>
     public class ModuleAccessDto
@@ -1817,6 +1838,29 @@ namespace CRMS.winforms.Api
             catch (HttpRequestException)
             {
                 return new List<TenantSubscriptionEntryDto>();
+            }
+        }
+
+        /// <summary>Calls GET /api/superadmin/subscriptions/sync-status — every
+        /// active tenant's local-first sync state at once. Returns an empty
+        /// list if the request fails.</summary>
+        public async Task<List<TenantSyncStatusEntryDto>> GetSuperadminSyncStatusAsync(string token)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/api/superadmin/subscriptions/sync-status");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                var response = await _http.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                    return new List<TenantSyncStatusEntryDto>();
+
+                string body = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<List<TenantSyncStatusEntryDto>>(body, _jsonOptions) ?? new List<TenantSyncStatusEntryDto>();
+            }
+            catch (HttpRequestException)
+            {
+                return new List<TenantSyncStatusEntryDto>();
             }
         }
 

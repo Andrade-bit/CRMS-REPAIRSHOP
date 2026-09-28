@@ -50,6 +50,12 @@ namespace CRMS.winforms.Controllers
         public System.Threading.Tasks.Task<List<TenantSubscriptionEntryDto>> GetSubscriptionsAsync() =>
             _apiClient.GetSubscriptionsAsync(Token);
 
+        /// <summary>Every active tenant's local-first sync state at once — feeds
+        /// the header's platform-wide sync pill, since Superadmin has no single
+        /// tenant of its own for the per-tenant /api/sync/status to answer.</summary>
+        public System.Threading.Tasks.Task<List<TenantSyncStatusEntryDto>> GetPlatformSyncStatusAsync() =>
+            _apiClient.GetSuperadminSyncStatusAsync(Token);
+
         /// <summary>Suspends or reactivates a tenant's Admin login — the same
         /// mechanism that blocks any other suspended account from signing in.</summary>
         public System.Threading.Tasks.Task<(bool Success, string Message)> SetSubscriptionStatusAsync(int companyId, string status) =>

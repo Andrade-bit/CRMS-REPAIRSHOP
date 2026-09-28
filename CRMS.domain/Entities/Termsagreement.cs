@@ -2,7 +2,7 @@
 
 namespace CRMS.domain.Entities
 {
-    public class TermsAgreement
+    public class TermsAgreement : ISyncTracked
     {
         public int TermsId { get; set; }
 
@@ -23,5 +23,10 @@ namespace CRMS.domain.Entities
         // new "Growth" version only flips this off on the previous current
         // "Growth" version, leaving Starter/AllAccess/All untouched.
         public bool IsCurrent { get; set; }
+
+        // ----- Local-first cloud sync ----- (see Staff.cs for the full explanation)
+        public bool IsSynced { get; set; } = false;
+        public DateTime? SyncedAt { get; set; }
+        public int? CloudId { get; set; }
     }
 }

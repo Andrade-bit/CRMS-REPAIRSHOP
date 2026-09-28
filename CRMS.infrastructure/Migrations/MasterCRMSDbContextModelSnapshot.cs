@@ -44,6 +44,14 @@ namespace CRMS.infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<int?>("CloudId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsSynced")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -72,6 +80,9 @@ namespace CRMS.infrastructure.Migrations
 
                     b.Property<int?>("SuperadminId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("SyncedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("AdminId");
 
@@ -109,6 +120,11 @@ namespace CRMS.infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("IsSynced")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("bit");
 
@@ -138,6 +154,9 @@ namespace CRMS.infrastructure.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("SyncedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
@@ -169,6 +188,9 @@ namespace CRMS.infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CompanyId"));
 
+                    b.Property<int?>("CloudId")
+                        .HasColumnType("int");
+
                     b.Property<string>("CompanyCode")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -184,6 +206,14 @@ namespace CRMS.infrastructure.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<bool>("IsSynced")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("SyncedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("CompanyId");
 
@@ -274,6 +304,17 @@ namespace CRMS.infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<int?>("CloudId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsSynced")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("SyncedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("SuperadminId");
 
                     b.HasIndex("ApplicationUserId")
@@ -290,6 +331,9 @@ namespace CRMS.infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TermsId"));
 
+                    b.Property<int?>("CloudId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasMaxLength(4000)
@@ -301,6 +345,11 @@ namespace CRMS.infrastructure.Migrations
                     b.Property<bool>("IsCurrent")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsSynced")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("PlanScope")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -308,6 +357,9 @@ namespace CRMS.infrastructure.Migrations
 
                     b.Property<int>("SuperadminId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("SyncedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Version")
                         .IsRequired()

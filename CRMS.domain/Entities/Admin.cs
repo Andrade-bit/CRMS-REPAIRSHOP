@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace CRMS.domain.Entities
 {
-    public class Admin
+    public class Admin : ISyncTracked
     {
         public int AdminId { get; set; }
 
@@ -41,5 +41,10 @@ namespace CRMS.domain.Entities
         // CRMS.api's module-access endpoint; defaults every tenant to full
         // access until a Superadmin explicitly picks a different plan.
         public string SubscriptionPlan { get; set; } = "AllAccess";
+
+        // ----- Local-first cloud sync ----- (see Staff.cs for the full explanation)
+        public bool IsSynced { get; set; } = false;
+        public DateTime? SyncedAt { get; set; }
+        public int? CloudId { get; set; }
     }
 }

@@ -27,6 +27,7 @@ namespace CRMS.winforms.SuperAdmin
         private Label toastLabel = null!;
         private System.Windows.Forms.Timer toastTimer = null!;
         private List<TenantSubscriptionEntryDto> _tenants = new();
+        private Dictionary<string, TermsVersionEntryDto?> _termsByPlan = new();
 
         private static readonly string[] StatusOptions = { "Active", "Suspended" };
 
@@ -110,6 +111,7 @@ namespace CRMS.winforms.SuperAdmin
                     tenantGrid.CommitEdit(DataGridViewDataErrorContexts.Commit);
             };
             tenantGrid.CellValueChanged += TenantGrid_CellValueChanged;
+            tenantGrid.CellClick += TenantGrid_CellClick;
 
             ShowEmptyState();
 
@@ -175,15 +177,15 @@ namespace CRMS.winforms.SuperAdmin
                 // share a handful of plans, so this avoids redundant identical
                 // calls when many tenants are on the same plan.
                 var distinctPlans = _tenants.Select(t => t.Plan).Distinct().ToList();
-                var termsByPlan = new Dictionary<string, TermsVersionEntryDto?>();
+                _termsByPlan = new Dictionary<string, TermsVersionEntryDto?>();
                 await System.Threading.Tasks.Task.WhenAll(distinctPlans.Select(async plan =>
                 {
-                    termsByPlan[plan] = await _controller.GetCurrentTermsForPlanAsync(plan);
+                    _termsByPlan[plan] = await _controller.GetCurrentTermsForPlanAsync(plan);
                 }));
 
                 foreach (var tenant in _tenants)
                 {
-                    string termsLabel = termsByPlan.TryGetValue(tenant.Plan, out var terms) && terms != null
+                    string termsLabel = _termsByPlan.TryGetValue(tenant.Plan, out var terms) && terms != null
                         ? terms.Version
                         : "—";
 
@@ -288,6 +290,22 @@ namespace CRMS.winforms.SuperAdmin
                 return;
             }
             ShowToast($"✓ {tenant.CompanyName}'s subscription is now \"{newStatus}\".");
+        }
+
+        /// <summary>Opens the read-only detail popup for the clicked row — every
+        /// column except Status (that one's an editable dropdown, not a
+        /// row-detail trigger) opens it.</summary>
+        private void TenantGrid_CellClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            if (tenantGrid.Columns[e.ColumnIndex].Name == "Status") return;
+
+            var row = tenantGrid.Rows[e.RowIndex];
+            if (row.Tag is not TenantSubscriptionEntryDto tenant) return;
+
+            _termsByPlan.TryGetValue(tenant.Plan, out var terms);
+            using var dialog = new SubscriptionDetailDialog(tenant, PlanDisplayName(tenant.Plan), terms);
+            dialog.ShowDialog(FindForm());
         }
 
         private static string PlanDisplayName(string key) => key switch

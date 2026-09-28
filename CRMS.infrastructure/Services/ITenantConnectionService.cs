@@ -15,5 +15,12 @@ namespace CRMS.infrastructure.Services
         /// no cloud credentials are configured for this tenant, since a tenant
         /// with nothing to sync to should never have been scheduled to sync.</summary>
         Task<string> GetTenantCloudConnectionStringAsync(int companyId);
+
+        /// <summary>The cloud database MasterSyncBackgroundService pushes
+        /// Companies/Admins/Superadmins/TermsAgreements/ApplicationUsers to —
+        /// read from "ConnectionStrings:MasterCloud". Returns null (not a
+        /// throw) if that key isn't configured, since a deployment that never
+        /// set this up simply has nothing to sync Master data to yet.</summary>
+        string? GetMasterCloudConnectionString();
     }
 }

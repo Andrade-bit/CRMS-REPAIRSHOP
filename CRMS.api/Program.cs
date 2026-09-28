@@ -10,6 +10,18 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// The default Windows Event Log provider (auto-registered by the host on
+// Windows) throws when it can't open the event source — which happens for
+// an app installed under Program Files without admin rights the first time
+// it tries to write. That throw happens *inside* a logger.LogError() call in
+// TenantSyncBackgroundService's own catch block, uncaught, which crashes the
+// entire background-service host. This app never runs as a Windows Service
+// and has no use for Event Log integration anyway — Console is what actually
+// shows up when running interactively (or in the installed app's case,
+// nowhere visible either way), so it's the only provider that matters here.
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+
 // launchSettings.json (the previous source of this) only applies under
 // `dotnet run`/Visual Studio — a published exe has no launchSettings, so the
 // port has to be pinned here or the WinForms client's hardcoded
@@ -34,6 +46,12 @@ builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 // worker itself — runs continuously for the lifetime of the API process.
 builder.Services.AddSingleton<ITenantSyncStatusStore, TenantSyncStatusStore>();
 builder.Services.AddHostedService<TenantSyncBackgroundService>();
+
+// Same local-first sync, but for the Master database itself (Companies,
+// Admins, Superadmins, TermsAgreements, every login) — a single pass against
+// one fixed cloud target, not one per tenant.
+builder.Services.AddSingleton<IMasterSyncStatusStore, MasterSyncStatusStore>();
+builder.Services.AddHostedService<MasterSyncBackgroundService>();
 
 // TenantCRMSDbContext: connection string is resolved per-request from the
 // logged-in user's CompanyId claim, via ITenantConnectionService.

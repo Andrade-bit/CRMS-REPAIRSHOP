@@ -37,6 +37,9 @@ namespace CRMS.infrastructure.Services
         public Task<string> GetTenantCloudConnectionStringAsync(int companyId) =>
             ResolveConnectionStringAsync(companyId, "TenantCloudCredentials", "TenantCloudConnectionString");
 
+        public string? GetMasterCloudConnectionString() =>
+            _configuration.GetConnectionString("MasterCloud");
+
         private async Task<string> ResolveConnectionStringAsync(int companyId, string configSectionRoot, string cacheKeyPrefix)
         {
             string cacheKey = $"{cacheKeyPrefix}:{companyId}";

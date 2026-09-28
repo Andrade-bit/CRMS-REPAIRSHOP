@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using System;
+using Microsoft.AspNetCore.Identity;
 
 namespace CRMS.domain.Entities
 {
@@ -17,5 +18,14 @@ namespace CRMS.domain.Entities
         public Company? Company { get; set; }
 
         public string Status { get; set; } = "Active"; // Active, Suspended, etc.
+
+        // ----- Local-first cloud sync -----
+        // No CloudId here unlike other synced entities — Identity's own Id is
+        // already a globally-unique string, so the cloud row reuses the exact
+        // same Id instead of needing a separate mapping. That also means every
+        // FK that already points at ApplicationUserId (Admin, Superadmin) just
+        // works unchanged once pushed, no remapping needed.
+        public bool IsSynced { get; set; } = false;
+        public DateTime? SyncedAt { get; set; }
     }
 }

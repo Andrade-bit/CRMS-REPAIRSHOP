@@ -50,6 +50,9 @@ namespace CRMS.winforms.SuperAdmin
             layout.PageRequested += (s, e) => NavigatePage(e.PageKey);
             layout.LogoutRequested += LogoutItem_Click;
 
+            var syncIndicator = new PlatformSyncStatusIndicator(superAdminController.GetPlatformSyncStatusAsync);
+            layout.AddHeaderExtra(syncIndicator);
+
             Controls.Add(layout);
 
             ResumeLayout(false);

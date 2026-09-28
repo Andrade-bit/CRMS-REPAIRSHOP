@@ -106,6 +106,13 @@ namespace CRMS.api.Services
             var cloudOptions = new DbContextOptionsBuilder<TenantCRMSDbContext>().UseSqlServer(cloudConnectionString).Options;
             await using var cloudDb = new TenantCRMSDbContext(cloudOptions);
 
+            // The cloud context is only ever a write destination here, never
+            // something read back for "what's still pending" — without this,
+            // its own auto-dirty-tracking would silently reset IsSynced back
+            // to false on every new/edited cloud row right before the save,
+            // immediately after each Push*Async method sets it to true.
+            cloudDb.SuppressSyncDirtyTracking = true;
+
             bool cloudReachable;
             try
             {
